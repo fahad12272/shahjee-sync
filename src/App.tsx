@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react"
 import { Sidebar } from "./components/Sidebar"
 import { Header } from "./components/Header"
+import {
+  ToastContainer,
+  type ToastItem,
+  type ToastType,
+} from "./components/Toast"
 import { CreatePost } from "./pages/CreatePost"
 import { ConnectedAccounts } from "./pages/ConnectedAccounts"
 import { ScheduledQueue } from "./pages/ScheduledQueue"
@@ -11,6 +16,7 @@ import {
   accountToPlatform,
   clearStoredPosts,
   connectedAccounts,
+  createId,
   loadAccounts,
   loadPosts,
   queuedPosts,
@@ -24,6 +30,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [posts, setPosts] = useState<Post[]>(loadPosts)
   const [accounts, setAccounts] = useState(loadAccounts)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
 
   useEffect(() => {
     savePosts(posts)
@@ -33,6 +40,16 @@ export default function App() {
     saveAccounts(accounts)
   }, [accounts])
 
+  const removeToast = (id: string) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id))
+  }
+
+  const showToast = (message: string, type: ToastType = "success") => {
+    const id = createId()
+    setToasts((current) => [...current.slice(-2), { id, message, type }])
+    window.setTimeout(() => removeToast(id), 3200)
+  }
+
   const connectedPlatforms = accounts
     .filter((account) => account.status === "Connected")
     .map((account) => accountToPlatform[account.name])
@@ -41,25 +58,48 @@ export default function App() {
   const handlePublish = (post: Post) => {
     setPosts((current) => [post, ...current])
     setActivePage("Scheduled Queue")
+    showToast("Post added to your publishing queue")
   }
 
   const handleDeletePost = (id: string) => {
     setPosts((current) => current.filter((post) => post.id !== id))
+    showToast("Post deleted", "info")
+  }
+
+  const handleEditPost = (id: string, title: string) => {
+    setPosts((current) =>
+      current.map((post) => (post.id === id ? { ...post, title } : post)),
+    )
+    showToast("Post updated")
+  }
+
+  const handleReschedulePost = (id: string, date: string, time: string) => {
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === id ? { ...post, date, time, status: "Pending" } : post,
+      ),
+    )
+    showToast(`Rescheduled to ${date}, ${time}`)
   }
 
   const handleToggleAccount = (name: string) => {
+    const target = accounts.find((account) => account.name === name)
+    const willConnect = target?.status !== "Connected"
+
     setAccounts((current) =>
       current.map((account) =>
         account.name === name
           ? {
               ...account,
-              status:
-                account.status === "Connected"
-                  ? "Not Connected"
-                  : "Connected",
+              status: willConnect ? "Connected" : "Not Connected",
             }
           : account,
       ),
+    )
+
+    showToast(
+      willConnect ? `${name} connected` : `${name} disconnected`,
+      willConnect ? "success" : "info",
     )
   }
 
@@ -68,6 +108,7 @@ export default function App() {
     setPosts(queuedPosts)
     setAccounts(connectedAccounts)
     setActivePage("Scheduled Queue")
+    showToast("Demo data restored", "info")
   }
 
   return (
@@ -92,7 +133,9 @@ export default function App() {
         ) : activePage === "Scheduled Queue" ? (
           <ScheduledQueue
             onDeletePost={handleDeletePost}
+            onEditPost={handleEditPost}
             onOpenCalendar={() => setActivePage("Calendar")}
+            onReschedulePost={handleReschedulePost}
             posts={posts}
           />
         ) : activePage === "Calendar" ? (
@@ -112,6 +155,8 @@ export default function App() {
           />
         )}
       </div>
+
+      <ToastContainer onDismiss={removeToast} toasts={toasts} />
     </div>
   )
 }

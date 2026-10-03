@@ -345,3 +345,16 @@ export function saveAccounts(accounts: ConnectedAccount[]) {
     // ignore
   }
 }
+
+export const formatDateLabel = (date: Date) =>
+  date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+
+export const formatTimeLabel = (date: Date) =>
+  date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
