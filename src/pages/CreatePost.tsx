@@ -21,10 +21,12 @@ export function CreatePost({
     pageTitle,
     onPublish,
     connectedPlatforms,
+    schedulePreset,
 }: {
     pageTitle: string
     onPublish: (post: Post) => void
     connectedPlatforms: string[]
+    schedulePreset?: { value: string; key: string } | null
 }) {
     const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
     const [caption, setCaption] = useState("")
@@ -46,6 +48,12 @@ export function CreatePost({
         setMediaUrl(url)
         return () => URL.revokeObjectURL(url)
     }, [media])
+    useEffect(() => {
+        if (schedulePreset) {
+            setPublishMode("schedule")
+            setScheduleAt(schedulePreset.value)
+        }
+    }, [schedulePreset])
 
     const selectMedia = (file?: File) => {
         if (

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Plus,
   X,
 } from "lucide-react"
 import { platformIconMap, type Post } from "../data"
@@ -45,9 +46,11 @@ function dateKey(date: Date) {
 
 export function CalendarView({
   posts,
+  onAddPost,
   onBack,
 }: {
   posts: Post[]
+  onAddPost: (date: Date) => void
   onBack: () => void
 }) {
   const [viewDate, setViewDate] = useState(() =>
@@ -135,7 +138,7 @@ export function CalendarView({
               Content Calendar
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              See every scheduled and published post at a glance.
+              Hover any date and press + to schedule a post instantly.
             </p>
           </div>
 
@@ -238,7 +241,7 @@ export function CalendarView({
 
                   return (
                     <div
-                      className={`min-h-24 p-2 ${index % 7 !== 6 ? "border-r border-slate-100" : ""} ${isLastRow ? "" : "border-b border-slate-100"} ${inMonth ? "bg-white" : "bg-slate-50/60"}`}
+                      className={`group min-h-24 p-2 ${index % 7 !== 6 ? "border-r border-slate-100" : ""} ${isLastRow ? "" : "border-b border-slate-100"} ${inMonth ? "bg-white" : "bg-slate-50/60"}`}
                       key={dateKey(date)}
                     >
                       <div className="flex items-center justify-between px-0.5">
@@ -253,10 +256,22 @@ export function CalendarView({
                         >
                           {date.getDate()}
                         </span>
-                        {inMonth && dayPosts.length > 0 && (
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            {dayPosts.length}
-                          </span>
+                        {inMonth && (
+                          <div className="flex items-center gap-1">
+                            {dayPosts.length > 0 && (
+                              <span className="text-[10px] font-semibold text-slate-400">
+                                {dayPosts.length}
+                              </span>
+                            )}
+                            <button
+                              aria-label={`Schedule post on ${date.toDateString()}`}
+                              className="flex size-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-indigo-50 hover:text-indigo-600 focus:opacity-100 group-hover:opacity-100"
+                              onClick={() => onAddPost(date)}
+                              type="button"
+                            >
+                              <Plus className="size-3" />
+                            </button>
+                          </div>
                         )}
                       </div>
 
@@ -265,7 +280,7 @@ export function CalendarView({
                           {dayPosts.slice(0, 2).map((post) => (
                             <button
                               className={`w-full rounded-lg border px-1.5 py-1 text-left transition ${statusChip[post.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}`}
-                              key={`${post.title}-${post.date}`}
+                              key={post.id}
                               onClick={() => setSelectedPost(post)}
                               type="button"
                             >

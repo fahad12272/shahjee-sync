@@ -31,6 +31,10 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>(loadPosts)
   const [accounts, setAccounts] = useState(loadAccounts)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [schedulePreset, setSchedulePreset] = useState<{
+    value: string
+    key: string
+  } | null>(null)
 
   useEffect(() => {
     savePosts(posts)
@@ -111,6 +115,17 @@ export default function App() {
     showToast("Demo data restored", "info")
   }
 
+  const handleCalendarAdd = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    setSchedulePreset({
+      value: `${year}-${month}-${day}T12:00`,
+      key: createId(),
+    })
+    setActivePage("Create Post")
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Sidebar
@@ -140,11 +155,12 @@ export default function App() {
           />
         ) : activePage === "Calendar" ? (
           <CalendarView
+            onAddPost={handleCalendarAdd}
             onBack={() => setActivePage("Scheduled Queue")}
             posts={posts}
           />
         ) : activePage === "Analytics" ? (
-          <AnalyticsPage />
+          <AnalyticsPage posts={posts} />
         ) : activePage === "Settings" ? (
           <SettingsPage onResetData={handleResetData} />
         ) : (
@@ -152,6 +168,7 @@ export default function App() {
             connectedPlatforms={connectedPlatforms}
             onPublish={handlePublish}
             pageTitle={activePage}
+            schedulePreset={schedulePreset}
           />
         )}
       </div>
