@@ -11,9 +11,9 @@ import {
 } from "lucide-react"
 import {
     createId,
+    createThumbnail,
     platformKeyMap,
     platforms,
-    readFileAsDataUrl,
     type Post,
 } from "../data"
 
@@ -86,7 +86,7 @@ export function CreatePost({
         const image = media
             ? media.type.startsWith("video/")
                 ? fallbackImage
-                : await readFileAsDataUrl(media)
+                : await createThumbnail(media)
             : fallbackImage
 
         onPublish({
@@ -163,10 +163,10 @@ export function CreatePost({
                                     return (
                                         <button
                                             className={`relative flex min-h-12 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-xs font-semibold shadow-sm transition ${!isConnected
-                                                    ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-70"
-                                                    : isSelected
-                                                        ? platform.active
-                                                        : "border-slate-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow"
+                                                ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-70"
+                                                : isSelected
+                                                    ? platform.active
+                                                    : "border-slate-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow"
                                                 }`}
                                             disabled={!isConnected}
                                             key={platform.name}
@@ -210,8 +210,8 @@ export function CreatePost({
                                 </div>
                                 <label
                                     className={`group flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-8 text-center transition ${isDragging
-                                            ? "border-indigo-400 bg-indigo-50"
-                                            : "border-slate-300 bg-slate-50/50 hover:border-indigo-300 hover:bg-indigo-50/50"
+                                        ? "border-indigo-400 bg-indigo-50"
+                                        : "border-slate-300 bg-slate-50/50 hover:border-indigo-300 hover:bg-indigo-50/50"
                                         }`}
                                     htmlFor="media-upload"
                                     onDragEnter={(event) => {
@@ -290,8 +290,8 @@ export function CreatePost({
                                 <div className="flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
                                     <button
                                         className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${publishMode === "now"
-                                                ? "bg-slate-900 text-white"
-                                                : "text-slate-500 hover:text-slate-900"
+                                            ? "bg-slate-900 text-white"
+                                            : "text-slate-500 hover:text-slate-900"
                                             }`}
                                         onClick={() => setPublishMode("now")}
                                         type="button"
@@ -301,8 +301,8 @@ export function CreatePost({
                                     </button>
                                     <button
                                         className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${publishMode === "schedule"
-                                                ? "bg-slate-900 text-white"
-                                                : "text-slate-500 hover:text-slate-900"
+                                            ? "bg-slate-900 text-white"
+                                            : "text-slate-500 hover:text-slate-900"
                                             }`}
                                         onClick={() => setPublishMode("schedule")}
                                         type="button"
@@ -353,8 +353,8 @@ export function CreatePost({
                             {(["Instagram", "YouTube"] as const).map((platform) => (
                                 <button
                                     className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition ${previewPlatform === platform
-                                            ? "bg-white text-slate-900 shadow-sm"
-                                            : "text-slate-500"
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500"
                                         }`}
                                     key={platform}
                                     onClick={() => setPreviewPlatform(platform)}
