@@ -77,6 +77,9 @@ export function CreatePost({
                 : [...current, name],
         )
     }
+    const scheduledInPast =
+        publishMode === "schedule" &&
+        (!scheduleAt || new Date(scheduleAt).getTime() < Date.now() - 60_000)
 
     const handlePublish = async () => {
         const targets = selectedPlatforms.filter((name) =>
@@ -113,7 +116,7 @@ export function CreatePost({
                 hour: "numeric",
                 minute: "2-digit",
             }),
-            status: "Pending",
+            status: publishMode === "schedule" ? "Pending" : "Published",
         })
 
         setCaption("")
@@ -301,8 +304,10 @@ export function CreatePost({
                                             ? "bg-slate-900 text-white"
                                             : "text-slate-500 hover:text-slate-900"
                                             }`}
+
                                         onClick={() => setPublishMode("now")}
                                         type="button"
+
                                     >
                                         <Send className="size-3.5" />
                                         Post Now
@@ -328,12 +333,19 @@ export function CreatePost({
                                         type="datetime-local"
                                         value={scheduleAt}
                                     />
+
+                                )}
+                                {scheduledInPast && (
+                                    <p className="w-full text-xs font-semibold text-rose-600">
+                                        Scheduled time is in the past — pick a future date and
+                                        time.
+                                    </p>
                                 )}
                             </div>
 
                             <button
                                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:shadow-indigo-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                                disabled={selectedPlatforms.length === 0}
+                                disabled={selectedPlatforms.length === 0 || scheduledInPast}
                                 onClick={handlePublish}
                                 type="button"
                             >

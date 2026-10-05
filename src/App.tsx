@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Sidebar } from "./components/Sidebar"
-import { Header } from "./components/Header"
+import { Header, type Activity } from "./components/Header"
 import {
   ToastContainer,
   type ToastItem,
@@ -31,7 +31,13 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>(loadPosts)
   const [accounts, setAccounts] = useState(loadAccounts)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [schedulePreset, setSchedulePreset] = useState<{
+    value: string
+    key: string
+  } | null>(null)
+  const [queueSearch, setQueueSearch] = useState<{
     value: string
     key: string
   } | null>(null)
@@ -44,6 +50,11 @@ export default function App() {
     saveAccounts(accounts)
   }, [accounts])
 
+  useEffect(() => {
+    const title = activePage === "Calendar" ? "Content Calendar" : activePage
+    document.title = `${title} — Shahjee Sync`
+  }, [activePage])
+
   const removeToast = (id: string) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }
@@ -54,6 +65,17 @@ export default function App() {
     window.setTimeout(() => removeToast(id), 3200)
   }
 
+  const addActivity = (message: string, kind: Activity["kind"]) => {
+    const time = new Date().toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    setActivities((current) =>
+      [{ id: createId(), message, time, kind }, ...current].slice(0, 12),
+    )
+    setUnreadCount((current) => current + 1)
+  }
+
   const connectedPlatforms = accounts
     .filter((account) => account.status === "Connected")
     .map((account) => accountToPlatform[account.name])
@@ -62,12 +84,26 @@ export default function App() {
   const handlePublish = (post: Post) => {
     setPosts((current) => [post, ...current])
     setActivePage("Scheduled Queue")
-    showToast("Post added to your publishing queue")
+    showToast(
+      post.status === "Published"
+        ? "Post published successfully"
+        : "Post added to your publishing queue",
+    )
+    addActivity(
+      post.status === "Published"
+        ? `“${post.title}” was published`
+        : `“${post.title}” was scheduled for ${post.date}`,
+      "publish",
+    )
   }
 
   const handleDeletePost = (id: string) => {
+    const target = posts.find((post) => post.id === id)
     setPosts((current) => current.filter((post) => post.id !== id))
     showToast("Post deleted", "info")
+    if (target) {
+      addActivity(`“${target.title}” was deleted`, "delete")
+    }
   }
 
   const handleEditPost = (id: string, title: string) => {
@@ -75,6 +111,7 @@ export default function App() {
       current.map((post) => (post.id === id ? { ...post, title } : post)),
     )
     showToast("Post updated")
+    addActivity(`A post was renamed to “${title}”`, "edit")
   }
 
   const handleReschedulePost = (id: string, date: string, time: string) => {
@@ -84,6 +121,7 @@ export default function App() {
       ),
     )
     showToast(`Rescheduled to ${date}, ${time}`)
+    addActivity(`A post was rescheduled to ${date}, ${time}`, "edit")
   }
 
   const handleToggleAccount = (name: string) => {
@@ -105,6 +143,10 @@ export default function App() {
       willConnect ? `${name} connected` : `${name} disconnected`,
       willConnect ? "success" : "info",
     )
+    addActivity(
+      willConnect ? `${name} account was connected` : `${name} account was disconnected`,
+      "account",
+    )
   }
 
   const handleResetData = () => {
@@ -113,6 +155,7 @@ export default function App() {
     setAccounts(connectedAccounts)
     setActivePage("Scheduled Queue")
     showToast("Demo data restored", "info")
+    addActivity("Workspace data was reset", "info")
   }
 
   const handleCalendarAdd = (date: Date) => {
@@ -126,6 +169,11 @@ export default function App() {
     setActivePage("Create Post")
   }
 
+  const handleSearchSelect = (query: string) => {
+    setQueueSearch({ value: query, key: createId() })
+    setActivePage("Scheduled Queue")
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Sidebar
@@ -136,9 +184,14 @@ export default function App() {
       />
       <div className="flex min-h-screen flex-col lg:pl-72">
         <Header
+          activities={activities}
+          onMarkActivitiesRead={() => setUnreadCount(0)}
           onNewPost={() => setActivePage("Create Post")}
           onOpenMenu={() => setMobileOpen(true)}
+          onSearchSelect={handleSearchSelect}
           pageTitle={activePage}
+          posts={posts}
+          unreadCount={unreadCount}
         />
         {activePage === "Connected Accounts" ? (
           <ConnectedAccounts
@@ -147,6 +200,7 @@ export default function App() {
           />
         ) : activePage === "Scheduled Queue" ? (
           <ScheduledQueue
+            initialSearch={queueSearch}
             onDeletePost={handleDeletePost}
             onEditPost={handleEditPost}
             onOpenCalendar={() => setActivePage("Calendar")}

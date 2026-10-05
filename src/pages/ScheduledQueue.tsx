@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CalendarClock,
   CalendarDays,
@@ -174,17 +174,19 @@ function PostModal({
 }
 
 export function ScheduledQueue({
+  posts,
+  onOpenCalendar,
   onDeletePost,
   onEditPost,
-  onOpenCalendar,
   onReschedulePost,
-  posts,
+  initialSearch,
 }: {
   posts: Post[]
   onOpenCalendar: () => void
   onDeletePost: (id: string) => void
   onEditPost: (id: string, title: string) => void
   onReschedulePost: (id: string, date: string, time: string) => void
+  initialSearch?: { value: string; key: string } | null
 }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All")
@@ -192,6 +194,12 @@ export function ScheduledQueue({
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [editingPost, setEditingPost] = useState<Post | null>(null)
   const [editMode, setEditMode] = useState<"edit" | "reschedule">("edit")
+  
+  useEffect(() => {
+    if (initialSearch) {
+      setSearchQuery(initialSearch.value)
+    }
+  }, [initialSearch])
 
   const filteredPosts = posts.filter((post) => {
     const matchesSearch = post.title
@@ -336,7 +344,7 @@ export function ScheduledQueue({
                           {post.platforms.map((platform) => {
                             const config =
                               platformIconMap[
-                                platform as keyof typeof platformIconMap
+                              platform as keyof typeof platformIconMap
                               ]
                             const Icon = config.icon
                             return (
@@ -361,18 +369,16 @@ export function ScheduledQueue({
                       </td>
                       <td className="px-5 py-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-                            post.status === "Published"
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${post.status === "Published"
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-amber-50 text-amber-700"
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`size-1.5 rounded-full ${
-                              post.status === "Published"
+                            className={`size-1.5 rounded-full ${post.status === "Published"
                                 ? "bg-emerald-500"
                                 : "bg-amber-500"
-                            }`}
+                              }`}
                           />
                           {post.status}
                         </span>
