@@ -12,13 +12,34 @@ import { platformIconMap, type Post } from "../data"
 export function AnalyticsPage({ posts }: { posts: Post[] }) {
   const [timePeriod, setTimePeriod] = useState("Last 30 days")
 
+  const periodPosts = useMemo(() => {
+    if (timePeriod === "All time") return posts
+    const days =
+      timePeriod === "Last 7 days"
+        ? 7
+        : timePeriod === "Last 30 days"
+          ? 30
+          : 90
+    const times = posts
+      .map((post) => new Date(post.date).getTime())
+      .filter((time) => !Number.isNaN(time))
+    if (times.length === 0) return posts
+    const newest = Math.max(...times)
+    const cutoff = newest - days * 24 * 60 * 60 * 1000
+    return posts.filter(
+      (post) => new Date(post.date).getTime() >= cutoff,
+    )
+  }, [posts, timePeriod])
+
   const stats = useMemo(() => {
-    const total = posts.length
-    const pending = posts.filter((post) => post.status === "Pending").length
-    const published = posts.filter((post) => post.status === "Published").length
+    const total = periodPosts.length
+    const pending = periodPosts.filter((post) => post.status === "Pending").length
+    const published = periodPosts.filter(
+      (post) => post.status === "Published",
+    ).length
     const publishRate = total > 0 ? Math.round((published / total) * 100) : 0
     return { total, pending, published, publishRate }
-  }, [posts])
+  }, [periodPosts])
 
   const platformRows = useMemo(() => {
     const counts = new Map<
@@ -26,7 +47,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
       { total: number; pending: number; published: number }
     >()
 
-    posts.forEach((post) => {
+    periodPosts.forEach((post) => {
       post.platforms.forEach((platform) => {
         const entry =
           counts.get(platform) ?? { total: 0, pending: 0, published: 0 }
@@ -58,7 +79,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [posts])
+  }, [periodPosts])
 
   const activityData = useMemo(() => {
     const groups = new Map<
@@ -66,7 +87,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
       { label: string; total: number; published: number; sortKey: number }
     >()
 
-    posts.forEach((post) => {
+    periodPosts.forEach((post) => {
       const date = new Date(post.date)
       if (Number.isNaN(date.getTime())) return
       const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
@@ -91,7 +112,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
     return [...groups.values()]
       .sort((a, b) => a.sortKey - b.sortKey)
       .slice(-8)
-  }, [posts])
+  }, [periodPosts])
 
   const maxActivity = Math.max(1, ...activityData.map((item) => item.total))
   const maxShare = Math.max(1, ...platformRows.map((row) => row.share))
@@ -139,7 +160,8 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
               Analytics Overview
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Live snapshot of your publishing pipeline.
+              {periodPosts.length} {periodPosts.length === 1 ? "post" : "posts"}{" "}
+              in this period.
             </p>
           </div>
 
@@ -153,6 +175,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
               <option>Last 7 days</option>
               <option>Last 30 days</option>
               <option>Last 90 days</option>
+              <option>All time</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           </label>

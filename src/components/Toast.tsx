@@ -6,6 +6,7 @@ export type ToastItem = {
   id: string
   message: string
   type: ToastType
+  action?: { label: string; onClick: () => void }
 }
 
 const toastStyles: Record<ToastType, string> = {
@@ -39,16 +40,33 @@ export function ToastContainer({
         const Icon = toastIcons[toast.type]
         return (
           <div
-            className={`animate-toast-in pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg shadow-slate-300/50 ${toastStyles[toast.type]}`}
+            className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg shadow-slate-300/50"
             key={toast.id}
+            style={{ borderColor: undefined }}
             role="status"
           >
-            <Icon
-              className={`mt-0.5 size-4.5 shrink-0 ${toastIconColors[toast.type]}`}
-            />
-            <p className="flex-1 text-sm font-semibold text-slate-800">
-              {toast.message}
-            </p>
+            <div
+              className={`flex flex-1 items-start gap-3 ${toastStyles[toast.type]} rounded-lg`}
+            >
+              <Icon
+                className={`mt-0.5 size-4.5 shrink-0 ${toastIconColors[toast.type]}`}
+              />
+              <p className="flex-1 text-sm font-semibold text-slate-800">
+                {toast.message}
+              </p>
+              {toast.action && (
+                <button
+                  className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-700"
+                  onClick={() => {
+                    toast.action?.onClick()
+                    onDismiss(toast.id)
+                  }}
+                  type="button"
+                >
+                  {toast.action.label}
+                </button>
+              )}
+            </div>
             <button
               aria-label="Dismiss notification"
               className="flex size-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"

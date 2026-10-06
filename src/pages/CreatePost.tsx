@@ -10,10 +10,13 @@ import {
     UploadCloud,
 } from "lucide-react"
 import {
+    clearDraft,
     createId,
     createThumbnail,
+    loadDraft,
     platformKeyMap,
     platforms,
+    saveDraft,
     type Post,
 } from "../data"
 
@@ -28,10 +31,15 @@ export function CreatePost({
     connectedPlatforms: string[]
     schedulePreset?: { value: string; key: string } | null
 }) {
-    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
-    const [caption, setCaption] = useState("")
-    const [publishMode, setPublishMode] = useState<"now" | "schedule">("now")
-    const [scheduleAt, setScheduleAt] = useState("")
+    const [draft] = useState(() => loadDraft())
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(
+        draft?.platforms ?? [],
+    )
+    const [caption, setCaption] = useState(draft?.caption ?? "")
+    const [publishMode, setPublishMode] = useState<"now" | "schedule">(
+        draft?.publishMode ?? "now",
+    )
+    const [scheduleAt, setScheduleAt] = useState(draft?.scheduleAt ?? "")
     const [previewPlatform, setPreviewPlatform] =
         useState<"Instagram" | "YouTube">("Instagram")
     const [media, setMedia] = useState<File | null>(null)
@@ -54,6 +62,15 @@ export function CreatePost({
             setScheduleAt(schedulePreset.value)
         }
     }, [schedulePreset])
+    
+    useEffect(() => {
+        saveDraft({
+            caption,
+            platforms: selectedPlatforms,
+            publishMode,
+            scheduleAt,
+        })
+    }, [caption, selectedPlatforms, publishMode, scheduleAt])
 
     const selectMedia = (file?: File) => {
         if (
@@ -124,6 +141,7 @@ export function CreatePost({
         setSelectedPlatforms([])
         setPublishMode("now")
         setScheduleAt("")
+        clearDraft()
     }
 
     return (

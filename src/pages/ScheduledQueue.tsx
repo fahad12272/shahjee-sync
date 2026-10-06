@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CalendarClock,
   CalendarDays,
   Check,
   Clock3,
+  Copy,
   MoreHorizontal,
   Pencil,
   Search,
@@ -173,19 +177,25 @@ function PostModal({
   )
 }
 
+type SortField = "date" | "status" | "title"
+
 export function ScheduledQueue({
-  posts,
-  onOpenCalendar,
+  onBulkDelete,
   onDeletePost,
+  onDuplicatePost,
   onEditPost,
+  onOpenCalendar,
   onReschedulePost,
+  posts,
   initialSearch,
 }: {
   posts: Post[]
   onOpenCalendar: () => void
   onDeletePost: (id: string) => void
+  onDuplicatePost: (id: string) => void
   onEditPost: (id: string, title: string) => void
   onReschedulePost: (id: string, date: string, time: string) => void
+  onBulkDelete: (ids: string[]) => void
   initialSearch?: { value: string; key: string } | null
 }) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -194,25 +204,97 @@ export function ScheduledQueue({
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [editingPost, setEditingPost] = useState<Post | null>(null)
   const [editMode, setEditMode] = useState<"edit" | "reschedule">("edit")
-  
+  const [sortField, setSortField] = useState<SortField>("date")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     if (initialSearch) {
       setSearchQuery(initialSearch.value)
     }
   }, [initialSearch])
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch = post.title
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-    const matchesPlatform =
-      platformFilter === "All" ||
-      post.platforms.includes(platformFilter.toLowerCase())
-    const matchesStatus =
-      statusFilter === "All" || post.status === statusFilter
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const matchesSearch = post.title
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+      const matchesPlatform =
+        platformFilter === "All" ||
+        post.platforms.includes(platformFilter.toLowerCase())
+      const matchesStatus =
+        statusFilter === "All" || post.status === statusFilter
 
-    return matchesSearch && matchesPlatform && matchesStatus
-  })
+      return matchesSearch && matchesPlatform && matchesStatus
+    })
+  }, [posts, searchQuery, platformFilter, statusFilter])
+
+  const sortedPosts = useMemo(() => {
+    const arr = [...filteredPosts]
+    arr.sort((a, b) => {
+      let result = 0
+      if (sortField === "title") {
+        result = a.title.localeCompare(b.title)
+      } else if (sortField === "status") {
+        result = a.status.localeCompare(b.status)
+      } else {
+        const ta = new Date(`${a.date} ${a.time}`).getTime()
+        const tb = new Date(`${b.date} ${b.time}`).getTime()
+        result = (Number.isNaN(ta) ? 0 : ta) - (Number.isNaN(tb) ? 0 : tb)
+      }
+      return sortDir === "asc" ? result : -result
+    })
+    return arr
+  }, [filteredPosts, sortField, sortDir])
+
+  const allVisibleSelected =
+    sortedPosts.length > 0 &&
+    sortedPosts.every((post) => selected.has(post.id))
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDir(field === "date" ? "desc" : "asc")
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    setSelected((current) => {
+      if (allVisibleSelected) {
+        const next = new Set(current)
+        sortedPosts.forEach((post) => next.delete(post.id))
+        return next
+      }
+      const next = new Set(current)
+      sortedPosts.forEach((post) => next.add(post.id))
+      return next
+    })
+  }
+
+  const sortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="size-3 opacity-40" />
+    }
+    return sortDir === "asc" ? (
+      <ArrowUp className="size-3" />
+    ) : (
+      <ArrowDown className="size-3" />
+    )
+  }
 
   return (
     <>
@@ -303,25 +385,101 @@ export function ScheduledQueue({
               </div>
             </div>
 
+            {selected.size > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5 sm:px-5">
+                <span className="text-xs font-bold text-indigo-700">
+                  {selected.size} {selected.size === 1 ? "post" : "posts"}{" "}
+                  selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="flex h-8 items-center rounded-lg border border-indigo-200 bg-white px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                    onClick={() => setSelected(new Set())}
+                    type="button"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    className="flex h-8 items-center gap-1.5 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700"
+                    onClick={() => {
+                      onBulkDelete([...selected])
+                      setSelected(new Set())
+                    }}
+                    type="button"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Delete selected
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full min-w-3xl border-collapse text-left">
                 <thead className="bg-slate-100/80">
                   <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-3.5">Post</th>
+                    <th className="w-10 px-4 py-3.5">
+                      <input
+                        aria-label="Select all posts"
+                        checked={allVisibleSelected}
+                        className="size-4 cursor-pointer accent-indigo-600"
+                        onChange={toggleAll}
+                        type="checkbox"
+                      />
+                    </th>
+                    <th className="px-5 py-3.5">
+                      <button
+                        className="inline-flex items-center gap-1 transition hover:text-slate-700"
+                        onClick={() => toggleSort("title")}
+                        type="button"
+                      >
+                        Post
+                        {sortIcon("title")}
+                      </button>
+                    </th>
                     <th className="px-5 py-3.5">Platforms</th>
-                    <th className="px-5 py-3.5">Scheduled date</th>
-                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">
+                      <button
+                        className="inline-flex items-center gap-1 transition hover:text-slate-700"
+                        onClick={() => toggleSort("date")}
+                        type="button"
+                      >
+                        Scheduled date
+                        {sortIcon("date")}
+                      </button>
+                    </th>
+                    <th className="px-5 py-3.5">
+                      <button
+                        className="inline-flex items-center gap-1 transition hover:text-slate-700"
+                        onClick={() => toggleSort("status")}
+                        type="button"
+                      >
+                        Status
+                        {sortIcon("status")}
+                      </button>
+                    </th>
                     <th className="px-5 py-3.5 text-right">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPosts.map((post) => (
+                  {sortedPosts.map((post) => (
                     <tr
-                      className="relative transition hover:bg-slate-50/70"
+                      className={`relative transition hover:bg-slate-50/70 ${
+                        selected.has(post.id) ? "bg-indigo-50/40" : ""
+                      }`}
                       key={post.id}
                     >
+                      <td className="px-4 py-4">
+                        <input
+                          aria-label={`Select ${post.title}`}
+                          checked={selected.has(post.id)}
+                          className="size-4 cursor-pointer accent-indigo-600"
+                          onChange={() => toggleOne(post.id)}
+                          type="checkbox"
+                        />
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <img
@@ -344,8 +502,9 @@ export function ScheduledQueue({
                           {post.platforms.map((platform) => {
                             const config =
                               platformIconMap[
-                              platform as keyof typeof platformIconMap
+                                platform as keyof typeof platformIconMap
                               ]
+                            if (!config) return null
                             const Icon = config.icon
                             return (
                               <span
@@ -369,16 +528,18 @@ export function ScheduledQueue({
                       </td>
                       <td className="px-5 py-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${post.status === "Published"
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                            post.status === "Published"
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-amber-50 text-amber-700"
-                            }`}
+                          }`}
                         >
                           <span
-                            className={`size-1.5 rounded-full ${post.status === "Published"
+                            className={`size-1.5 rounded-full ${
+                              post.status === "Published"
                                 ? "bg-emerald-500"
                                 : "bg-amber-500"
-                              }`}
+                            }`}
                           />
                           {post.status}
                         </span>
@@ -399,7 +560,7 @@ export function ScheduledQueue({
                         </button>
 
                         {activeMenu === post.id && (
-                          <div className="absolute right-5 top-12 z-20 w-40 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-xl shadow-slate-200/60">
+                          <div className="absolute right-5 top-12 z-20 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-xl shadow-slate-200/60">
                             <button
                               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                               onClick={() => {
@@ -423,6 +584,17 @@ export function ScheduledQueue({
                             >
                               <CalendarClock className="size-3.5 text-slate-400" />
                               Reschedule
+                            </button>
+                            <button
+                              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                              onClick={() => {
+                                onDuplicatePost(post.id)
+                                setActiveMenu(null)
+                              }}
+                              type="button"
+                            >
+                              <Copy className="size-3.5 text-slate-400" />
+                              Duplicate
                             </button>
                             <button
                               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"

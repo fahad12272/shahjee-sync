@@ -59,10 +59,17 @@ export default function App() {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }
 
-  const showToast = (message: string, type: ToastType = "success") => {
+  const showToast = (
+    message: string,
+    type: ToastType = "success",
+    action?: { label: string; onClick: () => void },
+  ) => {
     const id = createId()
-    setToasts((current) => [...current.slice(-2), { id, message, type }])
-    window.setTimeout(() => removeToast(id), 3200)
+    setToasts((current) => [
+      ...current.slice(-2),
+      { id, message, type, action },
+    ])
+    window.setTimeout(() => removeToast(id), action ? 6000 : 3200)
   }
 
   const addActivity = (message: string, kind: Activity["kind"]) => {
@@ -81,6 +88,16 @@ export default function App() {
     .map((account) => accountToPlatform[account.name])
     .filter((platform): platform is string => Boolean(platform))
 
+  const restorePosts = (removed: Post[]) => {
+    setPosts((current) => [
+      ...removed.filter(
+        (post) => !current.some((existing) => existing.id === post.id),
+      ),
+      ...current,
+    ])
+    showToast("Deleted posts restored")
+  }
+
   const handlePublish = (post: Post) => {
     setPosts((current) => [post, ...current])
     setActivePage("Scheduled Queue")
@@ -98,12 +115,45 @@ export default function App() {
   }
 
   const handleDeletePost = (id: string) => {
-    const target = posts.find((post) => post.id === id)
+    const removed = posts.find((post) => post.id === id)
+    if (!removed) return
     setPosts((current) => current.filter((post) => post.id !== id))
-    showToast("Post deleted", "info")
-    if (target) {
-      addActivity(`“${target.title}” was deleted`, "delete")
+    showToast("Post deleted", "info", {
+      label: "Undo",
+      onClick: () => restorePosts([removed]),
+    })
+    addActivity(`“${removed.title}” was deleted`, "delete")
+  }
+
+  const handleBulkDelete = (ids: string[]) => {
+    const removed = posts.filter((post) => ids.includes(post.id))
+    if (removed.length === 0) return
+    setPosts((current) =>
+      current.filter((post) => !ids.includes(post.id)),
+    )
+    showToast(
+      `${removed.length} ${removed.length === 1 ? "post" : "posts"} deleted`,
+      "info",
+      { label: "Undo", onClick: () => restorePosts(removed) },
+    )
+    addActivity(
+      `${removed.length} ${removed.length === 1 ? "post was" : "posts were"} deleted`,
+      "delete",
+    )
+  }
+
+  const handleDuplicatePost = (id: string) => {
+    const original = posts.find((post) => post.id === id)
+    if (!original) return
+    const copy: Post = {
+      ...original,
+      id: createId(),
+      title: `${original.title} (Copy)`,
+      status: "Pending",
     }
+    setPosts((current) => [copy, ...current])
+    showToast("Post duplicated as Pending")
+    addActivity(`“${original.title}” was duplicated`, "info")
   }
 
   const handleEditPost = (id: string, title: string) => {
@@ -144,7 +194,9 @@ export default function App() {
       willConnect ? "success" : "info",
     )
     addActivity(
-      willConnect ? `${name} account was connected` : `${name} account was disconnected`,
+      willConnect
+        ? `${name} account was connected`
+        : `${name} account was disconnected`,
       "account",
     )
   }
@@ -156,6 +208,68 @@ export default function App() {
     setActivePage("Scheduled Queue")
     showToast("Demo data restored", "info")
     addActivity("Workspace data was reset", "info")
+  }
+
+  const handleExportData = () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      posts,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `shahjee-sync-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    showToast("Backup downloaded")
+  }
+
+  const handleImportData = async (file: File) => {
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text) as unknown
+      const incoming = Array.isArray(parsed)
+        ? parsed
+        : (parsed as { posts?: unknown })?.posts
+
+      if (!Array.isArray(incoming)) throw new Error("invalid")
+
+      const cleaned: Post[] = incoming
+        .filter(
+          (item): item is Record<string, unknown> =>
+            Boolean(item) &&
+            typeof (item as Record<string, unknown>).title === "string" &&
+            Array.isArray((item as Record<string, unknown>).platforms),
+        )
+        .map((item) => ({
+          id:
+            typeof item.id === "string" && item.id ? item.id : createId(),
+          title: String(item.title),
+          image:
+            typeof item.image === "string"
+              ? item.image
+              : "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160",
+          platforms: (item.platforms as unknown[]).map(String),
+          date: typeof item.date === "string" ? item.date : "No date",
+          time: typeof item.time === "string" ? item.time : "—",
+          status: item.status === "Published" ? "Published" : "Pending",
+        }))
+
+      if (cleaned.length === 0) throw new Error("empty")
+
+      setPosts(cleaned)
+      setActivePage("Scheduled Queue")
+      showToast(`Imported ${cleaned.length} ${cleaned.length === 1 ? "post" : "posts"}`)
+      addActivity(`Backup imported (${cleaned.length} posts)`, "info")
+    } catch {
+      showToast("Import failed — invalid backup file", "error")
+    }
   }
 
   const handleCalendarAdd = (date: Date) => {
@@ -201,7 +315,9 @@ export default function App() {
         ) : activePage === "Scheduled Queue" ? (
           <ScheduledQueue
             initialSearch={queueSearch}
+            onBulkDelete={handleBulkDelete}
             onDeletePost={handleDeletePost}
+            onDuplicatePost={handleDuplicatePost}
             onEditPost={handleEditPost}
             onOpenCalendar={() => setActivePage("Calendar")}
             onReschedulePost={handleReschedulePost}
@@ -216,7 +332,11 @@ export default function App() {
         ) : activePage === "Analytics" ? (
           <AnalyticsPage posts={posts} />
         ) : activePage === "Settings" ? (
-          <SettingsPage onResetData={handleResetData} />
+          <SettingsPage
+            onExportData={handleExportData}
+            onImportData={handleImportData}
+            onResetData={handleResetData}
+          />
         ) : (
           <CreatePost
             connectedPlatforms={connectedPlatforms}

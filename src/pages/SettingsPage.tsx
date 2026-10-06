@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Check, ChevronDown, Settings, Trash2 } from "lucide-react"
+import { Check, ChevronDown, Download, Settings, Trash2, Upload } from "lucide-react"
 import { ToggleSwitch } from "../components/ToggleSwitch"
 
 type NotificationKey =
@@ -13,30 +13,37 @@ const notificationOptions: {
   title: string
   desc: string
 }[] = [
-  {
-    key: "publishSuccess",
-    title: "Publish confirmations",
-    desc: "Get notified when a post is successfully published.",
-  },
-  {
-    key: "publishFailures",
-    title: "Publish failures",
-    desc: "Get alerted immediately if a post fails to publish.",
-  },
-  {
-    key: "weeklyReport",
-    title: "Weekly performance report",
-    desc: "A summary of your analytics every Monday morning.",
-  },
-  {
-    key: "productUpdates",
-    title: "Product updates",
-    desc: "News about new features and improvements.",
-  },
-]
-
-export function SettingsPage({ onResetData }: { onResetData: () => void }) {
-  const [profile, setProfile] = useState({
+    {
+      key: "publishSuccess",
+      title: "Publish confirmations",
+      desc: "Get notified when a post is successfully published.",
+    },
+    {
+      key: "publishFailures",
+      title: "Publish failures",
+      desc: "Get alerted immediately if a post fails to publish.",
+    },
+    {
+      key: "weeklyReport",
+      title: "Weekly performance report",
+      desc: "A summary of your analytics every Monday morning.",
+    },
+    {
+      key: "productUpdates",
+      title: "Product updates",
+      desc: "News about new features and improvements.",
+    },
+  ]
+export function SettingsPage({
+  onExportData,
+  onImportData,
+  onResetData,
+}: {
+  onExportData: () => void
+  onImportData: (file: File) => void
+  onResetData: () => void
+}) {
+   const [profile, setProfile] = useState({
     name: "Shahjee Khan",
     email: "shahjee@example.com",
   })
@@ -203,7 +210,40 @@ export function SettingsPage({ onResetData }: { onResetData: () => void }) {
           </label>
         </section>
 
-               {/* Danger zone */}
+        {/* Data backup */}
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="text-base font-bold text-slate-900">Data backup</div>
+          <p className="mt-1 text-xs text-slate-500">
+            Download all your posts as a JSON file, or restore from a previous
+            backup.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              className="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700"
+              onClick={onExportData}
+              type="button"
+            >
+              <Download className="size-4" />
+              Export backup
+            </button>
+            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+              <Upload className="size-4 text-slate-400" />
+              Import backup
+              <input
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) onImportData(file)
+                  event.target.value = ""
+                }}
+                type="file"
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* Danger zone */}
         <section className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5 shadow-sm sm:p-6">
           <div className="text-base font-bold text-rose-900">Danger zone</div>
           <p className="mt-1 text-xs text-rose-600">

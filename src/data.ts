@@ -392,3 +392,44 @@ export const formatTimeLabel = (date: Date) =>
     reader.onerror = () => reject(new Error("File read failed"))
     reader.readAsDataURL(file)
   })
+  export type Draft = {
+  caption: string
+  platforms: string[]
+  publishMode: "now" | "schedule"
+  scheduleAt: string
+}
+
+const DRAFT_KEY = "shahjee-sync-draft"
+
+export function loadDraft(): Draft | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Draft
+    if (!parsed || typeof parsed.caption !== "string") return null
+    return {
+      caption: parsed.caption,
+      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
+      publishMode: parsed.publishMode === "schedule" ? "schedule" : "now",
+      scheduleAt: typeof parsed.scheduleAt === "string" ? parsed.scheduleAt : "",
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveDraft(draft: Draft) {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    // ignore
+  }
+}
