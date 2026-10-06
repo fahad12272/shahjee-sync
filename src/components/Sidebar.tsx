@@ -1,31 +1,49 @@
+
+
 import { useState } from "react"
-import { ChevronDown, Settings, X, Zap } from "lucide-react"
+import { ChevronDown, LogOut, Settings, X, Zap } from "lucide-react"
 import { navigation } from "../data"
 
 export function Sidebar({
   activePage,
-  onNavigate,
   mobileOpen,
   onClose,
+  onLogout,
+  onNavigate,
+  user,
 }: {
   activePage: string
-  onNavigate: (page: string) => void
   mobileOpen: boolean
   onClose: () => void
+  onLogout: () => void
+  onNavigate: (page: string) => void
+  user: { name: string; email: string }
 }) {
   const [profileOpen, setProfileOpen] = useState(false)
+
+  const initials =
+    user.name
+      .split(" ")
+      .map((word) => word[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U"
+
   return (
     <>
       <div
         aria-hidden="true"
-        className={`fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-sm transition-opacity lg:hidden ${mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
+        className={`fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-sm transition-opacity lg:hidden ${
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
         onClick={onClose}
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 lg:translate-x-0 lg:shadow-sm ${mobileOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 lg:translate-x-0 lg:shadow-sm ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         <div className="flex h-20 shrink-0 items-center justify-between px-6">
           <div className="flex items-center gap-3">
@@ -62,10 +80,11 @@ export function Sidebar({
 
               return (
                 <button
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold transition-all ${isActive
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold transition-all ${
+                    isActive
                       ? "bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/60"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }`}
+                  }`}
                   key={item.label}
                   onClick={() => {
                     onNavigate(item.label)
@@ -75,10 +94,11 @@ export function Sidebar({
                 >
                   <Icon
                     aria-hidden="true"
-                    className={`size-5 ${isActive
+                    className={`size-5 ${
+                      isActive
                         ? "text-indigo-600"
                         : "text-slate-400 group-hover:text-slate-600"
-                      }`}
+                    }`}
                     strokeWidth={isActive ? 2.25 : 2}
                   />
                   <span>{item.label}</span>
@@ -91,7 +111,7 @@ export function Sidebar({
           </div>
         </nav>
 
-                <div className="relative p-4">
+        <div className="relative p-4">
           {profileOpen && (
             <div className="absolute bottom-full left-4 right-4 z-20 mb-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-300/50">
               <div className="px-3 py-2">
@@ -99,7 +119,7 @@ export function Sidebar({
                   Signed in as
                 </div>
                 <div className="truncate text-sm font-bold text-slate-800">
-                  shahjee@example.com
+                  {user.email}
                 </div>
               </div>
               <div className="my-1 border-t border-slate-100" />
@@ -115,6 +135,14 @@ export function Sidebar({
                 <Settings className="size-3.5 text-slate-400" />
                 Workspace settings
               </button>
+              <button
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                onClick={onLogout}
+                type="button"
+              >
+                <LogOut className="size-3.5" />
+                Log out
+              </button>
               <div className="px-3 py-2 text-[11px] text-slate-400">
                 Shahjee Sync · v1.0
               </div>
@@ -127,14 +155,14 @@ export function Sidebar({
             type="button"
           >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
-              SJ
+              {initials}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-slate-900">
-                Shahjee Khan
+                {user.name}
               </div>
               <div className="truncate text-xs text-slate-500">
-                shahjee@example.com
+                {user.email}
               </div>
             </div>
             <ChevronDown className="size-4 shrink-0 text-slate-400" />

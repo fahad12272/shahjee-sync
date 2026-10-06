@@ -12,6 +12,9 @@ import { ScheduledQueue } from "./pages/ScheduledQueue"
 import { CalendarView } from "./pages/CalendarView"
 import { AnalyticsPage } from "./pages/AnalyticsPage"
 import { SettingsPage } from "./pages/SettingsPage"
+import { LandingPage } from "./pages/LandingPage"
+import { AuthPage } from "./pages/AuthPage"
+import { logout, getSession, setSession, type User } from "./auth"
 import {
   accountToPlatform,
   clearStoredPosts,
@@ -26,10 +29,55 @@ import {
 } from "./data"
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(() => getSession())
+  const [authView, setAuthView] = useState<"landing" | "login" | "signup">(
+    "landing",
+  )
+
+  const handleAuth = (authenticated: User) => {
+    setSession(authenticated)
+    setUser(authenticated)
+  }
+
+  const handleLogout = () => {
+    logout()
+    setUser(null)
+    setAuthView("landing")
+  }
+
+  if (!user) {
+    if (authView === "landing") {
+      return (
+        <LandingPage
+          onGetStarted={() => setAuthView("signup")}
+          onLogin={() => setAuthView("login")}
+        />
+      )
+    }
+    return (
+      <AuthPage
+        mode={authView}
+        onAuth={handleAuth}
+        onBack={() => setAuthView("landing")}
+        onSwitchMode={setAuthView}
+      />
+    )
+  }
+
+  return <WorkspaceApp key={user.email} onLogout={handleLogout} user={user} />
+}
+
+function WorkspaceApp({
+  onLogout,
+  user,
+}: {
+  onLogout: () => void
+  user: User
+}) {
   const [activePage, setActivePage] = useState("Create Post")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [posts, setPosts] = useState<Post[]>(loadPosts)
-  const [accounts, setAccounts] = useState(loadAccounts)
+  const [posts, setPosts] = useState<Post[]>(() => loadPosts(user.email))
+  const [accounts, setAccounts] = useState(() => loadAccounts(user.email))
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -43,12 +91,17 @@ export default function App() {
   } | null>(null)
 
   useEffect(() => {
-    savePosts(posts)
-  }, [posts])
+    savePosts(user.email, posts)
+  }, [posts, user.email])
 
   useEffect(() => {
-    saveAccounts(accounts)
-  }, [accounts])
+    window.localStorage.removeItem("shahjee-sync-posts")
+    window.localStorage.removeItem("shahjee-sync-accounts")
+  }, [])
+
+  useEffect(() => {
+    saveAccounts(user.email, accounts)
+  }, [accounts, user.email])
 
   useEffect(() => {
     const title = activePage === "Calendar" ? "Content Calendar" : activePage
@@ -128,9 +181,7 @@ export default function App() {
   const handleBulkDelete = (ids: string[]) => {
     const removed = posts.filter((post) => ids.includes(post.id))
     if (removed.length === 0) return
-    setPosts((current) =>
-      current.filter((post) => !ids.includes(post.id)),
-    )
+    setPosts((current) => current.filter((post) => !ids.includes(post.id)))
     showToast(
       `${removed.length} ${removed.length === 1 ? "post" : "posts"} deleted`,
       "info",
@@ -182,9 +233,9 @@ export default function App() {
       current.map((account) =>
         account.name === name
           ? {
-              ...account,
-              status: willConnect ? "Connected" : "Not Connected",
-            }
+            ...account,
+            status: willConnect ? "Connected" : "Not Connected",
+          }
           : account,
       ),
     )
@@ -202,7 +253,7 @@ export default function App() {
   }
 
   const handleResetData = () => {
-    clearStoredPosts()
+    clearStoredPosts(user.email)
     setPosts(queuedPosts)
     setAccounts(connectedAccounts)
     setActivePage("Scheduled Queue")
@@ -248,8 +299,7 @@ export default function App() {
             Array.isArray((item as Record<string, unknown>).platforms),
         )
         .map((item) => ({
-          id:
-            typeof item.id === "string" && item.id ? item.id : createId(),
+          id: typeof item.id === "string" && item.id ? item.id : createId(),
           title: String(item.title),
           image:
             typeof item.image === "string"
@@ -265,7 +315,9 @@ export default function App() {
 
       setPosts(cleaned)
       setActivePage("Scheduled Queue")
-      showToast(`Imported ${cleaned.length} ${cleaned.length === 1 ? "post" : "posts"}`)
+      showToast(
+        `Imported ${cleaned.length} ${cleaned.length === 1 ? "post" : "posts"}`,
+      )
       addActivity(`Backup imported (${cleaned.length} posts)`, "info")
     } catch {
       showToast("Import failed — invalid backup file", "error")
@@ -276,10 +328,16 @@ export default function App() {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
-    setSchedulePreset({
-      value: `${year}-${month}-${day}T12:00`,
-      key: createId(),
-    })
+    const handleCalendarAdd = (date: Date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, "0")
+      const day = String(date.getDate()).padStart(2, "0")
+      setSchedulePreset({
+        value: `${year}-${month}-${day}T12:00`,
+        key: createId(),
+      })
+      setActivePage("Create Post")
+    }
     setActivePage("Create Post")
   }
 
@@ -294,7 +352,9 @@ export default function App() {
         activePage={activePage}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
+        onLogout={onLogout}
         onNavigate={setActivePage}
+        user={user}
       />
       <div className="flex min-h-screen flex-col lg:pl-72">
         <Header
@@ -336,6 +396,7 @@ export default function App() {
             onExportData={handleExportData}
             onImportData={handleImportData}
             onResetData={handleResetData}
+            user={user}
           />
         ) : (
           <CreatePost

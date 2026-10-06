@@ -279,11 +279,12 @@ export const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file)
   })
 
-const STORAGE_KEY = "shahjee-sync-posts"
+const postsKeyFor = (email: string) => `shahjee-sync-posts:${email}`
+const LEGACY_POSTS_KEY = "shahjee-sync-posts"
 
-export function loadPosts(): Post[] {
+export function loadPosts(email: string): Post[] {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(postsKeyFor(email))
     if (!raw) return queuedPosts
     const parsed = JSON.parse(raw) as Post[]
     if (!Array.isArray(parsed) || parsed.length === 0) return queuedPosts
@@ -293,17 +294,17 @@ export function loadPosts(): Post[] {
   }
 }
 
-export function savePosts(posts: Post[]) {
+export function savePosts(email: string, posts: Post[]) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts))
+    window.localStorage.setItem(postsKeyFor(email), JSON.stringify(posts))
   } catch {
     console.warn("Posts save nahi hui — storage full. Settings se reset karein.")
   }
 }
 
-export function clearStoredPosts() {
+export function clearStoredPosts(email: string) {
   try {
-    window.localStorage.removeItem(STORAGE_KEY)
+    window.localStorage.removeItem(postsKeyFor(email))
   } catch {
     // ignore
   }
@@ -320,11 +321,13 @@ export const accountToPlatform: Record<string, string> = {
 
 export type ConnectedAccount = (typeof connectedAccounts)[number]
 
-const ACCOUNTS_KEY = "shahjee-sync-accounts"
+const accountsKeyFor = (email: string) =>
+  `shahjee-sync-accounts:${email}`
+const LEGACY_ACCOUNTS_KEY = "shahjee-sync-accounts"
 
-export function loadAccounts(): ConnectedAccount[] {
+export function loadAccounts(email: string): ConnectedAccount[] {
   try {
-    const raw = window.localStorage.getItem(ACCOUNTS_KEY)
+    const raw = window.localStorage.getItem(accountsKeyFor(email))
     if (!raw) return connectedAccounts
     const parsed = JSON.parse(raw) as { name: string; status: string }[]
     if (!Array.isArray(parsed)) return connectedAccounts
@@ -337,10 +340,53 @@ export function loadAccounts(): ConnectedAccount[] {
   }
 }
 
-export function saveAccounts(accounts: ConnectedAccount[]) {
+export function saveAccounts(email: string, accounts: ConnectedAccount[]) {
   try {
     const slim = accounts.map(({ name, status }) => ({ name, status }))
-    window.localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(slim))
+    window.localStorage.setItem(accountsKeyFor(email), JSON.stringify(slim))
+  } catch {
+    // ignore
+  }
+}
+
+export type Draft = {
+  caption: string
+  platforms: string[]
+  publishMode: "now" | "schedule"
+  scheduleAt: string
+}
+
+const DRAFT_KEY = "shahjee-sync-draft"
+
+export function loadDraft(): Draft | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Draft
+    if (!parsed || typeof parsed.caption !== "string") return null
+    return {
+      caption: parsed.caption,
+      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
+      publishMode: parsed.publishMode === "schedule" ? "schedule" : "now",
+      scheduleAt:
+        typeof parsed.scheduleAt === "string" ? parsed.scheduleAt : "",
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveDraft(draft: Draft) {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
   } catch {
     // ignore
   }
@@ -358,7 +404,6 @@ export const formatTimeLabel = (date: Date) =>
     hour: "numeric",
     minute: "2-digit",
   })
-
   export const createThumbnail = (file: File, maxSize = 400) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -392,44 +437,3 @@ export const formatTimeLabel = (date: Date) =>
     reader.onerror = () => reject(new Error("File read failed"))
     reader.readAsDataURL(file)
   })
-  export type Draft = {
-  caption: string
-  platforms: string[]
-  publishMode: "now" | "schedule"
-  scheduleAt: string
-}
-
-const DRAFT_KEY = "shahjee-sync-draft"
-
-export function loadDraft(): Draft | null {
-  try {
-    const raw = window.localStorage.getItem(DRAFT_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Draft
-    if (!parsed || typeof parsed.caption !== "string") return null
-    return {
-      caption: parsed.caption,
-      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
-      publishMode: parsed.publishMode === "schedule" ? "schedule" : "now",
-      scheduleAt: typeof parsed.scheduleAt === "string" ? parsed.scheduleAt : "",
-    }
-  } catch {
-    return null
-  }
-}
-
-export function saveDraft(draft: Draft) {
-  try {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-  } catch {
-    // ignore
-  }
-}
-
-export function clearDraft() {
-  try {
-    window.localStorage.removeItem(DRAFT_KEY)
-  } catch {
-    // ignore
-  }
-}

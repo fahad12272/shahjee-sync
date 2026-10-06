@@ -38,14 +38,16 @@ export function SettingsPage({
   onExportData,
   onImportData,
   onResetData,
+  user,
 }: {
   onExportData: () => void
   onImportData: (file: File) => void
   onResetData: () => void
+  user: { name: string; email: string }
 }) {
    const [profile, setProfile] = useState({
-    name: "Shahjee Khan",
-    email: "shahjee@example.com",
+    name: user.name,
+    email: user.email,
   })
   const [saved, setSaved] = useState(false)
   const [timezone, setTimezone] = useState("Asia/Karachi")
