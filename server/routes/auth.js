@@ -1,6 +1,7 @@
 const express = require("express")
 const jwt = require("jsonwebtoken")
 const User = require("../models/User")
+const { protect } = require("../middleware/auth")
 
 const router = express.Router()
 
@@ -106,6 +107,27 @@ router.post("/login", async (req, res) => {
     })
   } catch (error) {
     console.error("❌ LOGIN ERROR:", error)    // 👈 YE LINE ADD KARO
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// @route   GET /api/auth/me
+// @desc    Current logged-in user ki info (token se)
+// @access  Protected 🔒
+router.get("/me", protect, async (req, res) => {
+  try {
+    // protect middleware ne req.user set kar diya hai
+    res.json({
+      success: true,
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        joinedAt: req.user.joinedAt,
+      },
+    })
+  } catch (error) {
+    console.error("❌ ME ROUTE ERROR:", error)
     res.status(500).json({ success: false, error: "Server error — try again" })
   }
 })
