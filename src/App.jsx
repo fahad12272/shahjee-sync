@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Zap } from "lucide-react"
 import { Sidebar } from "./components/Sidebar"
 import { Header } from "./components/Header"
 import { ToastContainer } from "./components/Toast"
@@ -10,32 +11,70 @@ import { AnalyticsPage } from "./pages/AnalyticsPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { LandingPage } from "./pages/LandingPage"
 import { AuthPage } from "./pages/AuthPage"
-import { logout, getSession, setSession } from "./auth"
+import {
+  apiMe,
+  apiGetPosts,
+  apiCreatePost,
+  apiUpdatePost,
+  apiDeletePost,
+  getToken,
+  removeToken,
+} from "./api"
 import {
   accountToPlatform,
-  clearStoredPosts,
   connectedAccounts,
   createId,
   loadAccounts,
-  loadPosts,
   queuedPosts,
   saveAccounts,
-  savePosts,
 } from "./data"
 
 export default function App() {
-  const [user, setUser] = useState(() => getSession())
+  const [user, setUser] = useState(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const [authView, setAuthView] = useState("landing")
 
+  // Page load pe token check karo — valid hai to seedha workspace
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!getToken()) {
+        setCheckingAuth(false)
+        return
+      }
+      try {
+        const userData = await apiMe()
+        setUser(userData)
+      } catch {
+        removeToken()
+      }
+      setCheckingAuth(false)
+    }
+    checkSession()
+  }, [])
+
   const handleAuth = (authenticated) => {
-    setSession(authenticated)
     setUser(authenticated)
   }
 
   const handleLogout = () => {
-    logout()
+    removeToken()
     setUser(null)
     setAuthView("landing")
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+            <Zap className="size-7 fill-current" />
+          </div>
+          <p className="text-sm font-semibold text-slate-500">
+            Loading your workspace...
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
@@ -63,31 +102,13 @@ export default function App() {
 function WorkspaceApp({ onLogout, user }) {
   const [activePage, setActivePage] = useState("Create Post")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [posts, setPosts] = useState(() => loadPosts(user.email))
+  const [posts, setPosts] = useState([])
   const [accounts, setAccounts] = useState(() => loadAccounts(user.email))
   const [toasts, setToasts] = useState([])
   const [activities, setActivities] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [schedulePreset, setSchedulePreset] = useState(null)
   const [queueSearch, setQueueSearch] = useState(null)
-
-  useEffect(() => {
-    savePosts(user.email, posts)
-  }, [posts, user.email])
-
-  useEffect(() => {
-    saveAccounts(user.email, accounts)
-  }, [accounts, user.email])
-
-  useEffect(() => {
-    const title = activePage === "Calendar" ? "Content Calendar" : activePage
-    document.title = `${title} — Shahjee Sync`
-  }, [activePage])
-
-  useEffect(() => {
-    window.localStorage.removeItem("shahjee-sync-posts")
-    window.localStorage.removeItem("shahjee-sync-accounts")
-  }, [])
 
   const removeToast = (id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
@@ -113,93 +134,150 @@ function WorkspaceApp({ onLogout, user }) {
     setUnreadCount((current) => current + 1)
   }
 
+  // Accounts abhi localStorage pe hain (Day 10 mein API pe jayenge)
+  useEffect(() => {
+    saveAccounts(user.email, accounts)
+  }, [accounts, user.email])
+
+  // Posts BACKEND SE load karo 🚀
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const data = await apiGetPosts()
+        setPosts(data)
+      } catch (error) {
+        showToast(error.message, "error")
+      }
+    }
+    fetchPosts()
+  }, [])
+
+  useEffect(() => {
+    const title = activePage === "Calendar" ? "Content Calendar" : activePage
+    document.title = `${title} — Shahjee Sync`
+  }, [activePage])
+
   const connectedPlatforms = accounts
     .filter((account) => account.status === "Connected")
     .map((account) => accountToPlatform[account.name])
     .filter((platform) => Boolean(platform))
 
-  const restorePosts = (removed) => {
-    setPosts((current) => [
-      ...removed.filter(
-        (post) => !current.some((existing) => existing.id === post.id),
-      ),
-      ...current,
-    ])
-    showToast("Deleted posts restored")
+  const restorePosts = async (removedList) => {
+    try {
+      const created = []
+      for (const removed of removedList) {
+        const { id, ...postData } = removed
+        created.push(await apiCreatePost(postData))
+      }
+      setPosts((current) => [...created, ...current])
+      showToast("Deleted posts restored")
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
-  const handlePublish = (post) => {
-    setPosts((current) => [post, ...current])
-    setActivePage("Scheduled Queue")
-    showToast(
-      post.status === "Published"
-        ? "Post published successfully"
-        : "Post added to your publishing queue",
-    )
-    addActivity(
-      post.status === "Published"
-        ? `“${post.title}” was published`
-        : `“${post.title}” was scheduled for ${post.date}`,
-      "publish",
-    )
+  const handlePublish = async (post) => {
+    try {
+      const { id, ...postData } = post
+      const savedPost = await apiCreatePost(postData)
+      setPosts((current) => [savedPost, ...current])
+      setActivePage("Scheduled Queue")
+      showToast(
+        savedPost.status === "Published"
+          ? "Post published successfully"
+          : "Post added to your publishing queue",
+      )
+      addActivity(
+        savedPost.status === "Published"
+          ? `“${savedPost.title}” was published`
+          : `“${savedPost.title}” was scheduled for ${savedPost.date}`,
+        "publish",
+      )
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
-  const handleDeletePost = (id) => {
+  const handleDeletePost = async (id) => {
     const removed = posts.find((post) => post.id === id)
     if (!removed) return
-    setPosts((current) => current.filter((post) => post.id !== id))
-    showToast("Post deleted", "info", {
-      label: "Undo",
-      onClick: () => restorePosts([removed]),
-    })
-    addActivity(`“${removed.title}” was deleted`, "delete")
+    try {
+      await apiDeletePost(id)
+      setPosts((current) => current.filter((post) => post.id !== id))
+      showToast("Post deleted", "info", {
+        label: "Undo",
+        onClick: () => restorePosts([removed]),
+      })
+      addActivity(`“${removed.title}” was deleted`, "delete")
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
-  const handleBulkDelete = (ids) => {
+  const handleBulkDelete = async (ids) => {
     const removed = posts.filter((post) => ids.includes(post.id))
     if (removed.length === 0) return
-    setPosts((current) => current.filter((post) => !ids.includes(post.id)))
-    showToast(
-      `${removed.length} ${removed.length === 1 ? "post" : "posts"} deleted`,
-      "info",
-      { label: "Undo", onClick: () => restorePosts(removed) },
-    )
-    addActivity(
-      `${removed.length} ${removed.length === 1 ? "post was" : "posts were"} deleted`,
-      "delete",
-    )
+    try {
+      await Promise.all(ids.map((id) => apiDeletePost(id)))
+      setPosts((current) => current.filter((post) => !ids.includes(post.id)))
+      showToast(
+        `${removed.length} ${removed.length === 1 ? "post" : "posts"} deleted`,
+        "info",
+        { label: "Undo", onClick: () => restorePosts(removed) },
+      )
+      addActivity(
+        `${removed.length} ${removed.length === 1 ? "post was" : "posts were"} deleted`,
+        "delete",
+      )
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
-  const handleDuplicatePost = (id) => {
+  const handleDuplicatePost = async (id) => {
     const original = posts.find((post) => post.id === id)
     if (!original) return
-    const copy = {
-      ...original,
-      id: createId(),
-      title: `${original.title} (Copy)`,
-      status: "Pending",
+    try {
+      const { id: _, ...copyData } = original
+      const copy = await apiCreatePost({
+        ...copyData,
+        title: `${original.title} (Copy)`,
+        status: "Pending",
+      })
+      setPosts((current) => [copy, ...current])
+      showToast("Post duplicated as Pending")
+      addActivity(`“${original.title}” was duplicated`, "info")
+    } catch (error) {
+      showToast(error.message, "error")
     }
-    setPosts((current) => [copy, ...current])
-    showToast("Post duplicated as Pending")
-    addActivity(`“${original.title}” was duplicated`, "info")
   }
 
-  const handleEditPost = (id, title) => {
-    setPosts((current) =>
-      current.map((post) => (post.id === id ? { ...post, title } : post)),
-    )
-    showToast("Post updated")
-    addActivity(`A post was renamed to “${title}”`, "edit")
+  const handleEditPost = async (id, title) => {
+    try {
+      await apiUpdatePost(id, { title })
+      setPosts((current) =>
+        current.map((post) => (post.id === id ? { ...post, title } : post)),
+      )
+      showToast("Post updated")
+      addActivity(`A post was renamed to “${title}”`, "edit")
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
-  const handleReschedulePost = (id, date, time) => {
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === id ? { ...post, date, time, status: "Pending" } : post,
-      ),
-    )
-    showToast(`Rescheduled to ${date}, ${time}`)
-    addActivity(`A post was rescheduled to ${date}, ${time}`, "edit")
+  const handleReschedulePost = async (id, date, time) => {
+    try {
+      await apiUpdatePost(id, { date, time, status: "Pending" })
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === id ? { ...post, date, time, status: "Pending" } : post,
+        ),
+      )
+      showToast(`Rescheduled to ${date}, ${time}`)
+      addActivity(`A post was rescheduled to ${date}, ${time}`, "edit")
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
   const handleToggleAccount = (name) => {
@@ -229,13 +307,23 @@ function WorkspaceApp({ onLogout, user }) {
     )
   }
 
-  const handleResetData = () => {
-    clearStoredPosts(user.email)
-    setPosts(queuedPosts)
-    setAccounts(connectedAccounts)
-    setActivePage("Scheduled Queue")
-    showToast("Demo data restored", "info")
-    addActivity("Workspace data was reset", "info")
+  const handleResetData = async () => {
+    try {
+      // Purani posts delete karo (backend se)
+      await Promise.all(posts.map((post) => apiDeletePost(post.id)))
+      // Demo posts backend mein banao
+      const created = []
+      for (const demo of queuedPosts) {
+        const { id, ...postData } = demo
+        created.push(await apiCreatePost(postData))
+      }
+      setPosts(created)
+      setActivePage("Scheduled Queue")
+      showToast("Demo data restored", "info")
+      addActivity("Workspace data was reset", "info")
+    } catch (error) {
+      showToast(error.message, "error")
+    }
   }
 
   const handleExportData = () => {
@@ -274,7 +362,6 @@ function WorkspaceApp({ onLogout, user }) {
             Array.isArray(item.platforms),
         )
         .map((item) => ({
-          id: typeof item.id === "string" && item.id ? item.id : createId(),
           title: String(item.title),
           image:
             typeof item.image === "string"
@@ -288,12 +375,15 @@ function WorkspaceApp({ onLogout, user }) {
 
       if (cleaned.length === 0) throw new Error("empty")
 
-      setPosts(cleaned)
+      const created = []
+      for (const postData of cleaned) {
+        created.push(await apiCreatePost(postData))
+      }
+
+      setPosts((current) => [...created, ...current])
       setActivePage("Scheduled Queue")
-      showToast(
-        `Imported ${cleaned.length} ${cleaned.length === 1 ? "post" : "posts"}`,
-      )
-      addActivity(`Backup imported (${cleaned.length} posts)`, "info")
+      showToast(`Imported ${created.length} posts`)
+      addActivity(`Backup imported (${created.length} posts)`, "info")
     } catch {
       showToast("Import failed — invalid backup file", "error")
     }

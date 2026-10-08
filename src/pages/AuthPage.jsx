@@ -9,7 +9,7 @@ import {
   User as UserIcon,
   Zap,
 } from "lucide-react"
-import { login, signup } from "../auth"
+import { apiSignup, apiLogin } from "../api"
 
 export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
   const [name, setName] = useState("")
@@ -20,18 +20,17 @@ export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
 
   const isSignup = mode === "signup"
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setError(null)
 
-    const result = isSignup
-      ? signup(name, email, password)
-      : login(email, password)
-
-    if (result.ok) {
-      onAuth(result.user)
-    } else {
-      setError(result.error)
+    try {
+      const user = isSignup
+        ? await apiSignup(name, email, password)
+        : await apiLogin(email, password)
+      onAuth(user)
+    } catch (error) {
+      setError(error.message)
     }
   }
 
