@@ -1,6 +1,8 @@
 const express = require("express")
 const cors = require("cors")
+const postRoutes = require("./routes/posts")
 require("dotenv").config()
+
 
 const connectDB = require("./config/db")
 const authRoutes = require("./routes/auth")
@@ -24,6 +26,7 @@ app.get("/api/health", (req, res) => {
 })
 
 app.use("/api/auth", authRoutes)
+app.use("/api/posts", postRoutes) 
 
 const PORT = process.env.PORT || 5000
 
