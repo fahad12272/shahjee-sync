@@ -1,39 +1,24 @@
 import { CheckCircle2, Info, X, XCircle } from "lucide-react"
 
-export type ToastType = "success" | "error" | "info"
-
-export type ToastItem = {
-  id: string
-  message: string
-  type: ToastType
-  action?: { label: string; onClick: () => void }
-}
-
-const toastStyles: Record<ToastType, string> = {
+const toastStyles = {
   success: "border-emerald-200 bg-white",
   error: "border-rose-200 bg-white",
   info: "border-indigo-200 bg-white",
 }
 
-const toastIcons: Record<ToastType, typeof CheckCircle2> = {
+const toastIcons = {
   success: CheckCircle2,
   error: XCircle,
   info: Info,
 }
 
-const toastIconColors: Record<ToastType, string> = {
+const toastIconColors = {
   success: "text-emerald-500",
   error: "text-rose-500",
   info: "text-indigo-500",
 }
 
-export function ToastContainer({
-  toasts,
-  onDismiss,
-}: {
-  toasts: ToastItem[]
-  onDismiss: (id: string) => void
-}) {
+export function ToastContainer({ toasts, onDismiss }) {
   return (
     <div className="pointer-events-none fixed bottom-5 right-5 z-[70] flex w-[calc(100vw-2.5rem)] max-w-sm flex-col gap-2.5">
       {toasts.map((toast) => {
@@ -42,7 +27,6 @@ export function ToastContainer({
           <div
             className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg shadow-slate-300/50"
             key={toast.id}
-            style={{ borderColor: undefined }}
             role="status"
           >
             <div

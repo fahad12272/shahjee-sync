@@ -1,41 +1,25 @@
-export type User = {
-  name: string
-  email: string
-  password: string
-  joinedAt: string
-}
-
 const USERS_KEY = "shahjee-sync-users"
 const SESSION_KEY = "shahjee-sync-session"
 const LEGACY_POSTS_KEY = "shahjee-sync-posts"
 const LEGACY_ACCOUNTS_KEY = "shahjee-sync-accounts"
 
-const postsKeyFor = (email: string) => `shahjee-sync-posts:${email}`
-const accountsKeyFor = (email: string) => `shahjee-sync-accounts:${email}`
+const postsKeyFor = (email) => `shahjee-sync-posts:${email}`
+const accountsKeyFor = (email) => `shahjee-sync-accounts:${email}`
 
-export type AuthResult =
-  | { ok: true; user: User }
-  | { ok: false; error: string }
-
-function loadUsers(): User[] {
+function loadUsers() {
   try {
     const raw = window.localStorage.getItem(USERS_KEY)
     if (!raw) return []
-    const parsed = JSON.parse(raw) as User[]
+    const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }
 }
 
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-export function signup(
-  name: string,
-  email: string,
-  password: string,
-): AuthResult {
+export function signup(name, email, password) {
   const cleanName = name.trim()
   const cleanEmail = email.trim().toLowerCase()
 
@@ -49,8 +33,8 @@ export function signup(
     return { ok: false, error: "Password must be at least 6 characters." }
   }
 
-   const users = loadUsers()
-  const isFirstUser = users.length === 0          // 👈 NAYI LINE
+  const users = loadUsers()
+  const isFirstUser = users.length === 0
   if (users.some((user) => user.email === cleanEmail)) {
     return {
       ok: false,
@@ -58,7 +42,7 @@ export function signup(
     }
   }
 
-  const user: User = {
+  const user = {
     name: cleanName,
     email: cleanEmail,
     password,
@@ -66,13 +50,13 @@ export function signup(
   }
   users.push(user)
   window.localStorage.setItem(USERS_KEY, JSON.stringify(users))
-  if (isFirstUser) {                               // 👈 NAYA CONDITION
+  if (isFirstUser) {
     migrateLegacyData(cleanEmail)
   }
   return { ok: true, user }
 }
 
-export function login(email: string, password: string): AuthResult {
+export function login(email, password) {
   const cleanEmail = email.trim().toLowerCase()
 
   if (!isValidEmail(cleanEmail)) {
@@ -92,18 +76,18 @@ export function login(email: string, password: string): AuthResult {
   return { ok: true, user }
 }
 
-export function getSession(): User | null {
+export function getSession() {
   try {
     const raw = window.localStorage.getItem(SESSION_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as User
+    const parsed = JSON.parse(raw)
     return parsed && parsed.email ? parsed : null
   } catch {
     return null
   }
 }
 
-export function setSession(user: User) {
+export function setSession(user) {
   window.localStorage.setItem(SESSION_KEY, JSON.stringify(user))
 }
 
@@ -115,7 +99,7 @@ export function logout() {
   }
 }
 
-function migrateLegacyData(email: string) {
+function migrateLegacyData(email) {
   try {
     const legacyPosts = window.localStorage.getItem(LEGACY_POSTS_KEY)
     if (legacyPosts && !window.localStorage.getItem(postsKeyFor(email))) {

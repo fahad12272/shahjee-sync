@@ -122,22 +122,12 @@ export const connectedAccounts = [
   },
 ]
 
-export type Post = {
-  id: string
-  title: string
-  image: string
-  platforms: string[]
-  date: string
-  time: string
-  status: string
-}
-
 export const createId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
-export const queuedPosts: Post[] = [
+export const queuedPosts = [
   {
     id: "post-1",
     title: "Building better workflows",
@@ -262,7 +252,7 @@ export const chartData = [
   { label: "May 25", reach: "h-40", engagement: "h-20" },
 ]
 
-export const platformKeyMap: Record<string, string> = {
+export const platformKeyMap = {
   Instagram: "instagram",
   "YouTube Shorts": "youtube",
   Facebook: "facebook",
@@ -271,141 +261,16 @@ export const platformKeyMap: Record<string, string> = {
   X: "x",
 }
 
-export const readFileAsDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
+export const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
 
-const postsKeyFor = (email: string) => `shahjee-sync-posts:${email}`
-const LEGACY_POSTS_KEY = "shahjee-sync-posts"
-
-export function loadPosts(email: string): Post[] {
-  try {
-    const raw = window.localStorage.getItem(postsKeyFor(email))
-    if (!raw) return queuedPosts
-    const parsed = JSON.parse(raw) as Post[]
-    if (!Array.isArray(parsed) || parsed.length === 0) return queuedPosts
-    return parsed.map((post) => ({ ...post, id: post.id || createId() }))
-  } catch {
-    return queuedPosts
-  }
-}
-
-export function savePosts(email: string, posts: Post[]) {
-  try {
-    window.localStorage.setItem(postsKeyFor(email), JSON.stringify(posts))
-  } catch {
-    console.warn("Posts save nahi hui — storage full. Settings se reset karein.")
-  }
-}
-
-export function clearStoredPosts(email: string) {
-  try {
-    window.localStorage.removeItem(postsKeyFor(email))
-  } catch {
-    // ignore
-  }
-}
-
-export const accountToPlatform: Record<string, string> = {
-  Instagram: "Instagram",
-  YouTube: "YouTube Shorts",
-  Facebook: "Facebook",
-  TikTok: "TikTok",
-  LinkedIn: "LinkedIn",
-  X: "X",
-}
-
-export type ConnectedAccount = (typeof connectedAccounts)[number]
-
-const accountsKeyFor = (email: string) =>
-  `shahjee-sync-accounts:${email}`
-const LEGACY_ACCOUNTS_KEY = "shahjee-sync-accounts"
-
-export function loadAccounts(email: string): ConnectedAccount[] {
-  try {
-    const raw = window.localStorage.getItem(accountsKeyFor(email))
-    if (!raw) return connectedAccounts
-    const parsed = JSON.parse(raw) as { name: string; status: string }[]
-    if (!Array.isArray(parsed)) return connectedAccounts
-    return connectedAccounts.map((account) => {
-      const saved = parsed.find((item) => item.name === account.name)
-      return saved ? { ...account, status: saved.status } : account
-    })
-  } catch {
-    return connectedAccounts
-  }
-}
-
-export function saveAccounts(email: string, accounts: ConnectedAccount[]) {
-  try {
-    const slim = accounts.map(({ name, status }) => ({ name, status }))
-    window.localStorage.setItem(accountsKeyFor(email), JSON.stringify(slim))
-  } catch {
-    // ignore
-  }
-}
-
-export type Draft = {
-  caption: string
-  platforms: string[]
-  publishMode: "now" | "schedule"
-  scheduleAt: string
-}
-
-const DRAFT_KEY = "shahjee-sync-draft"
-
-export function loadDraft(): Draft | null {
-  try {
-    const raw = window.localStorage.getItem(DRAFT_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Draft
-    if (!parsed || typeof parsed.caption !== "string") return null
-    return {
-      caption: parsed.caption,
-      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
-      publishMode: parsed.publishMode === "schedule" ? "schedule" : "now",
-      scheduleAt:
-        typeof parsed.scheduleAt === "string" ? parsed.scheduleAt : "",
-    }
-  } catch {
-    return null
-  }
-}
-
-export function saveDraft(draft: Draft) {
-  try {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-  } catch {
-    // ignore
-  }
-}
-
-export function clearDraft() {
-  try {
-    window.localStorage.removeItem(DRAFT_KEY)
-  } catch {
-    // ignore
-  }
-}
-
-export const formatDateLabel = (date: Date) =>
-  date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })
-
-export const formatTimeLabel = (date: Date) =>
-  date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  })
-  export const createThumbnail = (file: File, maxSize = 400) =>
-  new Promise<string>((resolve, reject) => {
+export const createThumbnail = (file, maxSize = 400) =>
+  new Promise((resolve, reject) => {
     const reader = new FileReader()
 
     reader.onload = () => {
@@ -436,4 +301,117 @@ export const formatTimeLabel = (date: Date) =>
 
     reader.onerror = () => reject(new Error("File read failed"))
     reader.readAsDataURL(file)
+  })
+
+const postsKeyFor = (email) => `shahjee-sync-posts:${email}`
+
+export function loadPosts(email) {
+  try {
+    const raw = window.localStorage.getItem(postsKeyFor(email))
+    if (!raw) return queuedPosts
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return queuedPosts
+    return parsed.map((post) => ({ ...post, id: post.id || createId() }))
+  } catch {
+    return queuedPosts
+  }
+}
+
+export function savePosts(email, posts) {
+  try {
+    window.localStorage.setItem(postsKeyFor(email), JSON.stringify(posts))
+  } catch {
+    console.warn("Posts save nahi hui — storage full. Settings se reset karein.")
+  }
+}
+
+export function clearStoredPosts(email) {
+  try {
+    window.localStorage.removeItem(postsKeyFor(email))
+  } catch {
+    // ignore
+  }
+}
+
+export const accountToPlatform = {
+  Instagram: "Instagram",
+  YouTube: "YouTube Shorts",
+  Facebook: "Facebook",
+  TikTok: "TikTok",
+  LinkedIn: "LinkedIn",
+  X: "X",
+}
+
+const accountsKeyFor = (email) => `shahjee-sync-accounts:${email}`
+
+export function loadAccounts(email) {
+  try {
+    const raw = window.localStorage.getItem(accountsKeyFor(email))
+    if (!raw) return connectedAccounts
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return connectedAccounts
+    return connectedAccounts.map((account) => {
+      const saved = parsed.find((item) => item.name === account.name)
+      return saved ? { ...account, status: saved.status } : account
+    })
+  } catch {
+    return connectedAccounts
+  }
+}
+
+export function saveAccounts(email, accounts) {
+  try {
+    const slim = accounts.map(({ name, status }) => ({ name, status }))
+    window.localStorage.setItem(accountsKeyFor(email), JSON.stringify(slim))
+  } catch {
+    // ignore
+  }
+}
+
+const DRAFT_KEY = "shahjee-sync-draft"
+
+export function loadDraft() {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed.caption !== "string") return null
+    return {
+      caption: parsed.caption,
+      platforms: Array.isArray(parsed.platforms) ? parsed.platforms : [],
+      publishMode: parsed.publishMode === "schedule" ? "schedule" : "now",
+      scheduleAt: typeof parsed.scheduleAt === "string" ? parsed.scheduleAt : "",
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveDraft(draft) {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+export const formatDateLabel = (date) =>
+  date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+
+export const formatTimeLabel = (date) =>
+  date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
   })

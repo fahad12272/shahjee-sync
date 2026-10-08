@@ -9,30 +9,30 @@ import {
   Plus,
   X,
 } from "lucide-react"
-import { platformIconMap, type Post } from "../data"
+import { platformIconMap } from "../data"
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-const statusChip: Record<string, string> = {
+const statusChip = {
   Pending: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
   Published:
     "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
   Failed: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
 }
 
-const statusDot: Record<string, string> = {
+const statusDot = {
   Pending: "bg-amber-500",
   Published: "bg-emerald-500",
   Failed: "bg-rose-500",
 }
 
-const statusBadge: Record<string, string> = {
+const statusBadge = {
   Pending: "bg-amber-50 text-amber-700",
   Published: "bg-emerald-50 text-emerald-700",
   Failed: "bg-rose-50 text-rose-700",
 }
 
-function isSameDay(a: Date, b: Date) {
+function isSameDay(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -40,23 +40,15 @@ function isSameDay(a: Date, b: Date) {
   )
 }
 
-function dateKey(date: Date) {
+function dateKey(date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
-export function CalendarView({
-  posts,
-  onAddPost,
-  onBack,
-}: {
-  posts: Post[]
-  onAddPost: (date: Date) => void
-  onBack: () => void
-}) {
+export function CalendarView({ posts, onAddPost, onBack }) {
   const [viewDate, setViewDate] = useState(() =>
     posts.length > 0 ? new Date(posts[0].date) : new Date(),
   )
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [selectedPost, setSelectedPost] = useState(null)
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
@@ -67,7 +59,7 @@ export function CalendarView({
     const daysInMonth = new Date(year, month + 1, 0).getDate()
     const daysInPrevMonth = new Date(year, month, 0).getDate()
 
-    const result: { date: Date; inMonth: boolean }[] = []
+    const result = []
 
     for (let i = firstWeekday - 1; i >= 0; i--) {
       result.push({
@@ -87,7 +79,7 @@ export function CalendarView({
   }, [year, month])
 
   const postsByDay = useMemo(() => {
-    const map = new Map<string, Post[]>()
+    const map = new Map()
     posts.forEach((post) => {
       const date = new Date(post.date)
       if (Number.isNaN(date.getTime())) return
@@ -313,10 +305,8 @@ export function CalendarView({
         </section>
       </div>
 
-      {/* Post details modal */}
       {selectedPost && (
         <div
-          aria-hidden="false"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
           onClick={() => setSelectedPost(null)}
         >
@@ -369,10 +359,7 @@ export function CalendarView({
                 </div>
                 <div className="mt-2 flex gap-2">
                   {selectedPost.platforms.map((platform) => {
-                    const config =
-                      platformIconMap[
-                        platform as keyof typeof platformIconMap
-                      ]
+                    const config = platformIconMap[platform]
                     if (!config) return null
                     const Icon = config.icon
                     return (

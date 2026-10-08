@@ -18,10 +18,9 @@ import {
   formatDateLabel,
   formatTimeLabel,
   platformIconMap,
-  type Post,
 } from "../data"
 
-function toDateInputValue(dateStr: string) {
+function toDateInputValue(dateStr) {
   const date = new Date(dateStr)
   if (Number.isNaN(date.getTime())) return ""
   const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -29,7 +28,7 @@ function toDateInputValue(dateStr: string) {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
-function toTimeInputValue(timeStr: string) {
+function toTimeInputValue(timeStr) {
   const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
   if (!match) return ""
   let hours = Number(match[1])
@@ -46,12 +45,6 @@ function PostModal({
   onSaveEdit,
   onSaveReschedule,
   post,
-}: {
-  mode: "edit" | "reschedule"
-  post: Post
-  onClose: () => void
-  onSaveEdit: (title: string) => void
-  onSaveReschedule: (date: string, time: string) => void
 }) {
   const [title, setTitle] = useState(post.title)
   const [dateValue, setDateValue] = useState(toDateInputValue(post.date))
@@ -177,36 +170,27 @@ function PostModal({
   )
 }
 
-type SortField = "date" | "status" | "title"
+const SORT_FIELDS = ["date", "status", "title"]
 
 export function ScheduledQueue({
-  onBulkDelete,
   onDeletePost,
   onDuplicatePost,
   onEditPost,
   onOpenCalendar,
   onReschedulePost,
   posts,
+  onBulkDelete,
   initialSearch,
-}: {
-  posts: Post[]
-  onOpenCalendar: () => void
-  onDeletePost: (id: string) => void
-  onDuplicatePost: (id: string) => void
-  onEditPost: (id: string, title: string) => void
-  onReschedulePost: (id: string, date: string, time: string) => void
-  onBulkDelete: (ids: string[]) => void
-  initialSearch?: { value: string; key: string } | null
 }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
-  const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const [editingPost, setEditingPost] = useState<Post | null>(null)
-  const [editMode, setEditMode] = useState<"edit" | "reschedule">("edit")
-  const [sortField, setSortField] = useState<SortField>("date")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [activeMenu, setActiveMenu] = useState(null)
+  const [editingPost, setEditingPost] = useState(null)
+  const [editMode, setEditMode] = useState("edit")
+  const [sortField, setSortField] = useState("date")
+  const [sortDir, setSortDir] = useState("desc")
+  const [selected, setSelected] = useState(new Set())
 
   useEffect(() => {
     if (initialSearch) {
@@ -251,7 +235,8 @@ export function ScheduledQueue({
     sortedPosts.length > 0 &&
     sortedPosts.every((post) => selected.has(post.id))
 
-  const toggleSort = (field: SortField) => {
+  const toggleSort = (field) => {
+    if (!SORT_FIELDS.includes(field)) return
     if (sortField === field) {
       setSortDir((current) => (current === "asc" ? "desc" : "asc"))
     } else {
@@ -260,7 +245,7 @@ export function ScheduledQueue({
     }
   }
 
-  const toggleOne = (id: string) => {
+  const toggleOne = (id) => {
     setSelected((current) => {
       const next = new Set(current)
       if (next.has(id)) {
@@ -285,7 +270,7 @@ export function ScheduledQueue({
     })
   }
 
-  const sortIcon = (field: SortField) => {
+  const sortIcon = (field) => {
     if (sortField !== field) {
       return <ArrowUpDown className="size-3 opacity-40" />
     }
@@ -501,9 +486,7 @@ export function ScheduledQueue({
                         <div className="flex -space-x-1.5">
                           {post.platforms.map((platform) => {
                             const config =
-                              platformIconMap[
-                                platform as keyof typeof platformIconMap
-                              ]
+                              platformIconMap[platform]
                             if (!config) return null
                             const Icon = config.icon
                             return (

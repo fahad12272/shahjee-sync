@@ -9,19 +9,8 @@ import {
   Search,
   Trash2,
 } from "lucide-react"
-import type { Post } from "../data"
 
-export type Activity = {
-  id: string
-  message: string
-  time: string
-  kind: "publish" | "delete" | "edit" | "account" | "info"
-}
-
-const activityMeta: Record<
-  Activity["kind"],
-  { icon: typeof Bell; style: string }
-> = {
+const activityMeta = {
   publish: { icon: CheckCircle2, style: "bg-emerald-50 text-emerald-600" },
   delete: { icon: Trash2, style: "bg-rose-50 text-rose-600" },
   edit: { icon: CalendarClock, style: "bg-indigo-50 text-indigo-600" },
@@ -38,21 +27,12 @@ export function Header({
   pageTitle,
   posts,
   unreadCount,
-}: {
-  activities: Activity[]
-  onMarkActivitiesRead: () => void
-  onNewPost: () => void
-  onOpenMenu: () => void
-  onSearchSelect: (query: string) => void
-  pageTitle: string
-  posts: Post[]
-  unreadCount: number
 }) {
   const [query, setQuery] = useState("")
   const [showResults, setShowResults] = useState(false)
   const [showBell, setShowBell] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
-  const bellRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef(null)
+  const bellRef = useRef(null)
 
   const trimmed = query.trim().toLowerCase()
   const results =
@@ -63,8 +43,8 @@ export function Header({
       : []
 
   useEffect(() => {
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node
+    const handleOutside = (event) => {
+      const target = event.target
       if (searchRef.current && !searchRef.current.contains(target)) {
         setShowResults(false)
       }

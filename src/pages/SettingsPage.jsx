@@ -1,59 +1,50 @@
 import { useState } from "react"
-import { Check, ChevronDown, Download, Settings, Trash2, Upload } from "lucide-react"
+import {
+  Check,
+  ChevronDown,
+  Download,
+  Settings,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { ToggleSwitch } from "../components/ToggleSwitch"
 
-type NotificationKey =
-  | "publishSuccess"
-  | "publishFailures"
-  | "weeklyReport"
-  | "productUpdates"
+const notificationOptions = [
+  {
+    key: "publishSuccess",
+    title: "Publish confirmations",
+    desc: "Get notified when a post is successfully published.",
+  },
+  {
+    key: "publishFailures",
+    title: "Publish failures",
+    desc: "Get alerted immediately if a post fails to publish.",
+  },
+  {
+    key: "weeklyReport",
+    title: "Weekly performance report",
+    desc: "A summary of your analytics every Monday morning.",
+  },
+  {
+    key: "productUpdates",
+    title: "Product updates",
+    desc: "News about new features and improvements.",
+  },
+]
 
-const notificationOptions: {
-  key: NotificationKey
-  title: string
-  desc: string
-}[] = [
-    {
-      key: "publishSuccess",
-      title: "Publish confirmations",
-      desc: "Get notified when a post is successfully published.",
-    },
-    {
-      key: "publishFailures",
-      title: "Publish failures",
-      desc: "Get alerted immediately if a post fails to publish.",
-    },
-    {
-      key: "weeklyReport",
-      title: "Weekly performance report",
-      desc: "A summary of your analytics every Monday morning.",
-    },
-    {
-      key: "productUpdates",
-      title: "Product updates",
-      desc: "News about new features and improvements.",
-    },
-  ]
 export function SettingsPage({
   onExportData,
   onImportData,
   onResetData,
   user,
-}: {
-  onExportData: () => void
-  onImportData: (file: File) => void
-  onResetData: () => void
-  user: { name: string; email: string }
 }) {
-   const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState({
     name: user.name,
     email: user.email,
   })
   const [saved, setSaved] = useState(false)
   const [timezone, setTimezone] = useState("Asia/Karachi")
-  const [notifications, setNotifications] = useState<
-    Record<NotificationKey, boolean>
-  >({
+  const [notifications, setNotifications] = useState({
     publishSuccess: true,
     publishFailures: true,
     weeklyReport: false,
@@ -90,7 +81,7 @@ export function SettingsPage({
 
           <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-lg shadow-indigo-200">
-              SJ
+              SF
             </div>
             <div className="grid flex-1 gap-4 sm:grid-cols-2">
               <label className="block">

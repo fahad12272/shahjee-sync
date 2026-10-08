@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react"
 import { Sidebar } from "./components/Sidebar"
-import { Header, type Activity } from "./components/Header"
-import {
-  ToastContainer,
-  type ToastItem,
-  type ToastType,
-} from "./components/Toast"
+import { Header } from "./components/Header"
+import { ToastContainer } from "./components/Toast"
 import { CreatePost } from "./pages/CreatePost"
 import { ConnectedAccounts } from "./pages/ConnectedAccounts"
 import { ScheduledQueue } from "./pages/ScheduledQueue"
@@ -14,7 +10,7 @@ import { AnalyticsPage } from "./pages/AnalyticsPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { LandingPage } from "./pages/LandingPage"
 import { AuthPage } from "./pages/AuthPage"
-import { logout, getSession, setSession, type User } from "./auth"
+import { logout, getSession, setSession } from "./auth"
 import {
   accountToPlatform,
   clearStoredPosts,
@@ -25,16 +21,13 @@ import {
   queuedPosts,
   saveAccounts,
   savePosts,
-  type Post,
 } from "./data"
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(() => getSession())
-  const [authView, setAuthView] = useState<"landing" | "login" | "signup">(
-    "landing",
-  )
+  const [user, setUser] = useState(() => getSession())
+  const [authView, setAuthView] = useState("landing")
 
-  const handleAuth = (authenticated: User) => {
+  const handleAuth = (authenticated) => {
     setSession(authenticated)
     setUser(authenticated)
   }
@@ -67,37 +60,20 @@ export default function App() {
   return <WorkspaceApp key={user.email} onLogout={handleLogout} user={user} />
 }
 
-function WorkspaceApp({
-  onLogout,
-  user,
-}: {
-  onLogout: () => void
-  user: User
-}) {
+function WorkspaceApp({ onLogout, user }) {
   const [activePage, setActivePage] = useState("Create Post")
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [posts, setPosts] = useState<Post[]>(() => loadPosts(user.email))
+  const [posts, setPosts] = useState(() => loadPosts(user.email))
   const [accounts, setAccounts] = useState(() => loadAccounts(user.email))
-  const [toasts, setToasts] = useState<ToastItem[]>([])
-  const [activities, setActivities] = useState<Activity[]>([])
+  const [toasts, setToasts] = useState([])
+  const [activities, setActivities] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [schedulePreset, setSchedulePreset] = useState<{
-    value: string
-    key: string
-  } | null>(null)
-  const [queueSearch, setQueueSearch] = useState<{
-    value: string
-    key: string
-  } | null>(null)
+  const [schedulePreset, setSchedulePreset] = useState(null)
+  const [queueSearch, setQueueSearch] = useState(null)
 
   useEffect(() => {
     savePosts(user.email, posts)
   }, [posts, user.email])
-
-  useEffect(() => {
-    window.localStorage.removeItem("shahjee-sync-posts")
-    window.localStorage.removeItem("shahjee-sync-accounts")
-  }, [])
 
   useEffect(() => {
     saveAccounts(user.email, accounts)
@@ -108,15 +84,16 @@ function WorkspaceApp({
     document.title = `${title} — Shahjee Sync`
   }, [activePage])
 
-  const removeToast = (id: string) => {
+  useEffect(() => {
+    window.localStorage.removeItem("shahjee-sync-posts")
+    window.localStorage.removeItem("shahjee-sync-accounts")
+  }, [])
+
+  const removeToast = (id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }
 
-  const showToast = (
-    message: string,
-    type: ToastType = "success",
-    action?: { label: string; onClick: () => void },
-  ) => {
+  const showToast = (message, type = "success", action) => {
     const id = createId()
     setToasts((current) => [
       ...current.slice(-2),
@@ -125,7 +102,7 @@ function WorkspaceApp({
     window.setTimeout(() => removeToast(id), action ? 6000 : 3200)
   }
 
-  const addActivity = (message: string, kind: Activity["kind"]) => {
+  const addActivity = (message, kind) => {
     const time = new Date().toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -139,9 +116,9 @@ function WorkspaceApp({
   const connectedPlatforms = accounts
     .filter((account) => account.status === "Connected")
     .map((account) => accountToPlatform[account.name])
-    .filter((platform): platform is string => Boolean(platform))
+    .filter((platform) => Boolean(platform))
 
-  const restorePosts = (removed: Post[]) => {
+  const restorePosts = (removed) => {
     setPosts((current) => [
       ...removed.filter(
         (post) => !current.some((existing) => existing.id === post.id),
@@ -151,7 +128,7 @@ function WorkspaceApp({
     showToast("Deleted posts restored")
   }
 
-  const handlePublish = (post: Post) => {
+  const handlePublish = (post) => {
     setPosts((current) => [post, ...current])
     setActivePage("Scheduled Queue")
     showToast(
@@ -167,7 +144,7 @@ function WorkspaceApp({
     )
   }
 
-  const handleDeletePost = (id: string) => {
+  const handleDeletePost = (id) => {
     const removed = posts.find((post) => post.id === id)
     if (!removed) return
     setPosts((current) => current.filter((post) => post.id !== id))
@@ -178,7 +155,7 @@ function WorkspaceApp({
     addActivity(`“${removed.title}” was deleted`, "delete")
   }
 
-  const handleBulkDelete = (ids: string[]) => {
+  const handleBulkDelete = (ids) => {
     const removed = posts.filter((post) => ids.includes(post.id))
     if (removed.length === 0) return
     setPosts((current) => current.filter((post) => !ids.includes(post.id)))
@@ -193,10 +170,10 @@ function WorkspaceApp({
     )
   }
 
-  const handleDuplicatePost = (id: string) => {
+  const handleDuplicatePost = (id) => {
     const original = posts.find((post) => post.id === id)
     if (!original) return
-    const copy: Post = {
+    const copy = {
       ...original,
       id: createId(),
       title: `${original.title} (Copy)`,
@@ -207,7 +184,7 @@ function WorkspaceApp({
     addActivity(`“${original.title}” was duplicated`, "info")
   }
 
-  const handleEditPost = (id: string, title: string) => {
+  const handleEditPost = (id, title) => {
     setPosts((current) =>
       current.map((post) => (post.id === id ? { ...post, title } : post)),
     )
@@ -215,7 +192,7 @@ function WorkspaceApp({
     addActivity(`A post was renamed to “${title}”`, "edit")
   }
 
-  const handleReschedulePost = (id: string, date: string, time: string) => {
+  const handleReschedulePost = (id, date, time) => {
     setPosts((current) =>
       current.map((post) =>
         post.id === id ? { ...post, date, time, status: "Pending" } : post,
@@ -225,7 +202,7 @@ function WorkspaceApp({
     addActivity(`A post was rescheduled to ${date}, ${time}`, "edit")
   }
 
-  const handleToggleAccount = (name: string) => {
+  const handleToggleAccount = (name) => {
     const target = accounts.find((account) => account.name === name)
     const willConnect = target?.status !== "Connected"
 
@@ -233,9 +210,9 @@ function WorkspaceApp({
       current.map((account) =>
         account.name === name
           ? {
-            ...account,
-            status: willConnect ? "Connected" : "Not Connected",
-          }
+              ...account,
+              status: willConnect ? "Connected" : "Not Connected",
+            }
           : account,
       ),
     )
@@ -281,22 +258,20 @@ function WorkspaceApp({
     showToast("Backup downloaded")
   }
 
-  const handleImportData = async (file: File) => {
+  const handleImportData = async (file) => {
     try {
       const text = await file.text()
-      const parsed = JSON.parse(text) as unknown
-      const incoming = Array.isArray(parsed)
-        ? parsed
-        : (parsed as { posts?: unknown })?.posts
+      const parsed = JSON.parse(text)
+      const incoming = Array.isArray(parsed) ? parsed : parsed?.posts
 
       if (!Array.isArray(incoming)) throw new Error("invalid")
 
-      const cleaned: Post[] = incoming
+      const cleaned = incoming
         .filter(
-          (item): item is Record<string, unknown> =>
+          (item) =>
             Boolean(item) &&
-            typeof (item as Record<string, unknown>).title === "string" &&
-            Array.isArray((item as Record<string, unknown>).platforms),
+            typeof item.title === "string" &&
+            Array.isArray(item.platforms),
         )
         .map((item) => ({
           id: typeof item.id === "string" && item.id ? item.id : createId(),
@@ -305,7 +280,7 @@ function WorkspaceApp({
             typeof item.image === "string"
               ? item.image
               : "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160",
-          platforms: (item.platforms as unknown[]).map(String),
+          platforms: item.platforms.map(String),
           date: typeof item.date === "string" ? item.date : "No date",
           time: typeof item.time === "string" ? item.time : "—",
           status: item.status === "Published" ? "Published" : "Pending",
@@ -324,24 +299,18 @@ function WorkspaceApp({
     }
   }
 
-  const handleCalendarAdd = (date: Date) => {
+  const handleCalendarAdd = (date) => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
-    const handleCalendarAdd = (date: Date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, "0")
-      const day = String(date.getDate()).padStart(2, "0")
-      setSchedulePreset({
-        value: `${year}-${month}-${day}T12:00`,
-        key: createId(),
-      })
-      setActivePage("Create Post")
-    }
+    setSchedulePreset({
+      value: `${year}-${month}-${day}T12:00`,
+      key: createId(),
+    })
     setActivePage("Create Post")
   }
 
-  const handleSearchSelect = (query: string) => {
+  const handleSearchSelect = (query) => {
     setQueueSearch({ value: query, key: createId() })
     setActivePage("Scheduled Queue")
   }

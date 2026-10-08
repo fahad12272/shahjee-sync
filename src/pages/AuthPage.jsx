@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,28 +9,18 @@ import {
   User as UserIcon,
   Zap,
 } from "lucide-react"
-import { login, signup, type User } from "../auth"
+import { login, signup } from "../auth"
 
-export function AuthPage({
-  mode,
-  onAuth,
-  onBack,
-  onSwitchMode,
-}: {
-  mode: "login" | "signup"
-  onAuth: (user: User) => void
-  onBack: () => void
-  onSwitchMode: (mode: "login" | "signup") => void
-}) {
+export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState(null)
 
   const isSignup = mode === "signup"
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event) => {
     event.preventDefault()
     setError(null)
 

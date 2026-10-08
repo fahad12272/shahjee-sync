@@ -1,5 +1,3 @@
-
-
 import { useState } from "react"
 import { ChevronDown, LogOut, Settings, X, Zap } from "lucide-react"
 import { navigation } from "../data"
@@ -11,13 +9,6 @@ export function Sidebar({
   onLogout,
   onNavigate,
   user,
-}: {
-  activePage: string
-  mobileOpen: boolean
-  onClose: () => void
-  onLogout: () => void
-  onNavigate: (page: string) => void
-  user: { name: string; email: string }
 }) {
   const [profileOpen, setProfileOpen] = useState(false)
 

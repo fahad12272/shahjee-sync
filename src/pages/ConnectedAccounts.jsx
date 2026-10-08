@@ -1,13 +1,6 @@
 import { Check, Link2, Zap } from "lucide-react"
-import type { ConnectedAccount } from "../data"
 
-export function ConnectedAccounts({
-  accounts,
-  onToggleAccount,
-}: {
-  accounts: ConnectedAccount[]
-  onToggleAccount: (name: string) => void
-}) {
+export function ConnectedAccounts({ accounts, onToggleAccount }) {
   const connectedCount = accounts.filter(
     (account) => account.status === "Connected",
   ).length

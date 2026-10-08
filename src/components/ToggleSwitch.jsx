@@ -1,12 +1,4 @@
-export function ToggleSwitch({
-  enabled,
-  label,
-  onToggle,
-}: {
-  enabled: boolean
-  label: string
-  onToggle: () => void
-}) {
+export function ToggleSwitch({ enabled, label, onToggle }) {
   return (
     <button
       aria-checked={enabled}

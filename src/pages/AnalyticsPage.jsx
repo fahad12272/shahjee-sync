@@ -7,9 +7,9 @@ import {
   Clock3,
   Layers,
 } from "lucide-react"
-import { platformIconMap, type Post } from "../data"
+import { platformIconMap } from "../data"
 
-export function AnalyticsPage({ posts }: { posts: Post[] }) {
+export function AnalyticsPage({ posts }) {
   const [timePeriod, setTimePeriod] = useState("Last 30 days")
 
   const periodPosts = useMemo(() => {
@@ -42,10 +42,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
   }, [periodPosts])
 
   const platformRows = useMemo(() => {
-    const counts = new Map<
-      string,
-      { total: number; pending: number; published: number }
-    >()
+    const counts = new Map()
 
     periodPosts.forEach((post) => {
       post.platforms.forEach((platform) => {
@@ -68,7 +65,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
 
     return [...counts.entries()]
       .map(([key, entry]) => {
-        const config = platformIconMap[key as keyof typeof platformIconMap]
+        const config = platformIconMap[key]
         return {
           key,
           name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -82,10 +79,7 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
   }, [periodPosts])
 
   const activityData = useMemo(() => {
-    const groups = new Map<
-      string,
-      { label: string; total: number; published: number; sortKey: number }
-    >()
+    const groups = new Map()
 
     periodPosts.forEach((post) => {
       const date = new Date(post.date)
@@ -160,8 +154,8 @@ export function AnalyticsPage({ posts }: { posts: Post[] }) {
               Analytics Overview
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              {periodPosts.length} {periodPosts.length === 1 ? "post" : "posts"}{" "}
-              in this period.
+              {periodPosts.length}{" "}
+              {periodPosts.length === 1 ? "post" : "posts"} in this period.
             </p>
           </div>
 

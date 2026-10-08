@@ -150,7 +150,7 @@ const faqs = [
 ]
 
 function useReveal() {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef(null)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -172,13 +172,7 @@ function useReveal() {
   return { ref, visible }
 }
 
-function Reveal({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
+function Reveal({ children, className = "" }) {
   const { ref, visible } = useReveal()
   return (
     <div
@@ -192,15 +186,7 @@ function Reveal({
   )
 }
 
-function FaqItem({
-  faq,
-  isOpen,
-  onToggle,
-}: {
-  faq: (typeof faqs)[number]
-  isOpen: boolean
-  onToggle: () => void
-}) {
+function FaqItem({ faq, isOpen, onToggle }) {
   return (
     <div
       className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
@@ -237,14 +223,8 @@ function FaqItem({
   )
 }
 
-export function LandingPage({
-  onGetStarted,
-  onLogin,
-}: {
-  onGetStarted: () => void
-  onLogin: () => void
-}) {
-  const [openFaq, setOpenFaq] = useState<number | null>(0)
+export function LandingPage({ onGetStarted, onLogin }) {
+  const [openFaq, setOpenFaq] = useState(0)
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -298,7 +278,6 @@ export function LandingPage({
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50 via-white to-white">
-        {/* floating blobs */}
         <div
           aria-hidden="true"
           className="animate-blob pointer-events-none absolute -left-24 top-10 size-72 rounded-full bg-fuchsia-200/40 blur-3xl"
@@ -388,7 +367,6 @@ export function LandingPage({
                 className="absolute -inset-6 rounded-[2rem] bg-gradient-to-r from-indigo-200/60 via-fuchsia-200/40 to-violet-200/60 blur-2xl"
               />
               <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-indigo-300/30">
-                {/* browser bar */}
                 <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3">
                   <span className="size-2.5 rounded-full bg-rose-400" />
                   <span className="size-2.5 rounded-full bg-amber-400" />
@@ -397,7 +375,6 @@ export function LandingPage({
                     shahjee-sync.app
                   </span>
                 </div>
-                {/* fake dashboard */}
                 <div className="flex">
                   <div className="hidden w-40 shrink-0 border-r border-slate-100 bg-white p-3 sm:block">
                     <div className="mb-3 flex items-center gap-2">
