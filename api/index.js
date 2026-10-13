@@ -1,12 +1,12 @@
-const mongoose = require("mongoose")
-const app = require("../server/server")
+import mongoose from "mongoose"
+import app from "../server/server.js"
 
-let cached = global.__mongooseConn
+let cached = globalThis.__mongooseConn
 if (!cached) {
-  cached = global.__mongooseConn = { promise: null }
+  cached = globalThis.__mongooseConn = { promise: null }
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (!cached.promise) {
     cached.promise = mongoose
       .connect(process.env.MONGODB_URI)
