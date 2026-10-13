@@ -28,7 +28,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes)
 app.use("/api/posts", postRoutes) 
 
-// Local development ke liye (Vercel pe ye nahi chalega — serverless hoti hai wahan)
+// Local development ke liye
 if (require.main === module) {
   connectDB()
 
