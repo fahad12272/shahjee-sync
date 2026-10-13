@@ -1,7 +1,6 @@
 const mongoose = require("mongoose")
 const app = require("../server/server")
 
-// Serverless mein har invocation pe naya connection mat banao — cache karo
 let cached = global.__mongooseConn
 if (!cached) {
   cached = global.__mongooseConn = { promise: null }
