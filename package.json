@@ -10,6 +10,11 @@
     "format": "oxfmt"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "mongoose": "^9.11.1",
     "lucide-react": "^1.49.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
