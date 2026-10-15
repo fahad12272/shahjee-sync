@@ -1,24 +1,17 @@
-const express = require("express")
-const jwt = require("jsonwebtoken")
-const User = require("../models/User")
-const { protect } = require("../middleware/auth")
+import express from "express"
+import jwt from "jsonwebtoken"
+import User from "../models/User.js"
+import { protect } from "../middleware/auth.js"
 
 const router = express.Router()
 
-// Helper: JWT token banane ka function
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  })
-}
+const generateToken = (userId) =>
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" })
 
-// @route   POST /api/auth/signup
-// @desc    Naya user account banano
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body
 
-    // 1. Saare fields aaye?
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -26,7 +19,6 @@ router.post("/signup", async (req, res) => {
       })
     }
 
-    // 2. Email pehle se registered hai?
     const existingUser = await User.findOne({ email })
     if (existingUser) {
       return res.status(400).json({
@@ -35,25 +27,17 @@ router.post("/signup", async (req, res) => {
       })
     }
 
-    // 3. User banao (password automatically encrypt hoga — model ka pre-save hook)
     const user = await User.create({ name, email, password })
-
-    // 4. Token banao aur bhejo
     const token = generateToken(user._id)
 
     res.status(201).json({
       success: true,
       message: "Account created successfully! 🎉",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      user: { id: user._id, name: user.name, email: user.email },
     })
-   } catch (error) {
-    console.error("❌ SIGNUP ERROR:", error)   // 👈 YE LINE ADD KARO
-    // Validation errors (galat email format, chota password waghera)
+  } catch (error) {
+    console.error("❌ SIGNUP ERROR:", error)
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message)
       return res.status(400).json({ success: false, error: messages[0] })
@@ -62,8 +46,6 @@ router.post("/signup", async (req, res) => {
   }
 })
 
-// @route   POST /api/auth/login
-// @desc    Existing user login
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body
@@ -75,22 +57,18 @@ router.post("/login", async (req, res) => {
       })
     }
 
-    // User dhoondo (password ke saath)
     const user = await User.findOne({ email })
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: "No account found with this email.",
-      })
+      return res
+        .status(401)
+        .json({ success: false, error: "No account found with this email." })
     }
 
-    // Password match karo
     const isMatch = await user.comparePassword(password)
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        error: "Incorrect password. Try again.",
-      })
+      return res
+        .status(401)
+        .json({ success: false, error: "Incorrect password. Try again." })
     }
 
     const token = generateToken(user._id)
@@ -99,24 +77,16 @@ router.post("/login", async (req, res) => {
       success: true,
       message: "Login successful! 🚀",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      user: { id: user._id, name: user.name, email: user.email },
     })
   } catch (error) {
-    console.error("❌ LOGIN ERROR:", error)    // 👈 YE LINE ADD KARO
+    console.error("❌ LOGIN ERROR:", error)
     res.status(500).json({ success: false, error: "Server error — try again" })
   }
 })
 
-// @route   GET /api/auth/me
-// @desc    Current logged-in user ki info (token se)
-// @access  Protected 🔒
 router.get("/me", protect, async (req, res) => {
   try {
-    // protect middleware ne req.user set kar diya hai
     res.json({
       success: true,
       user: {
@@ -127,9 +97,9 @@ router.get("/me", protect, async (req, res) => {
       },
     })
   } catch (error) {
-    console.error("❌ ME ROUTE ERROR:", error)
+    console.error("❌ ME ERROR:", error)
     res.status(500).json({ success: false, error: "Server error — try again" })
   }
 })
 
-module.exports = router
+export default router
