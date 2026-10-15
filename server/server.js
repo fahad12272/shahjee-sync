@@ -1,22 +1,31 @@
-const express = require("express")
-const cors = require("cors")
-const postRoutes = require("./routes/posts")
-require("dotenv").config()
+import express from "express"
+import cors from "cors"
+import "dotenv/config"
 
-
-const connectDB = require("./config/db")
-const authRoutes = require("./routes/auth")
+import connectDB from "./config/db.js"
+import authRoutes from "./routes/auth.js"
+import postRoutes from "./routes/posts.js"
 
 const app = express()
 
-// Middleware
-app.use(cors())
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://shahjee-sync.vercel.app",
+]
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true)
+      }
+      return callback(new Error("Not allowed by CORS"))
+    },
+  }),
+)
+
 app.use(express.json())
 
-// Database connect karo
-// connectDB()
-
-// Routes
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
@@ -26,18 +35,17 @@ app.get("/api/health", (req, res) => {
 })
 
 app.use("/api/auth", authRoutes)
-app.use("/api/posts", postRoutes) 
+app.use("/api/posts", postRoutes)
 
-// Local development ke liye
-if (require.main === module) {
+// Local dev: server khud listen karta hai. Vercel (serverless) pe sirf export.
+if (!process.env.VERCEL) {
   connectDB()
 
   const PORT = process.env.PORT || 5000
   app.listen(PORT, () => {
-    console.log(`✅ Shahjee Sync backend chal raha hai: http://localhost:${PORT}`)
+    console.log(`✅ Shahjee Sync backend: http://localhost:${PORT}`)
     console.log(`💡 Health: http://localhost:${PORT}/api/health`)
   })
 }
 
-// Vercel ke liye app export karo
-module.exports = app
+export default app
