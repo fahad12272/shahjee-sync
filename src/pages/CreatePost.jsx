@@ -19,6 +19,8 @@ import {
   saveDraft,
 } from "../data"
 
+import { apiUploadMedia } from "../api"
+
 export function CreatePost({
   pageTitle,
   onPublish,
@@ -38,6 +40,9 @@ export function CreatePost({
   const [media, setMedia] = useState(null)
   const [mediaUrl, setMediaUrl] = useState("")
   const [isDragging, setIsDragging] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedUrl, setUploadedUrl] = useState("")
+  const [uploadError, setUploadError] = useState("")
 
   useEffect(() => {
     if (!media) {
@@ -50,6 +55,35 @@ export function CreatePost({
     return () => URL.revokeObjectURL(url)
   }, [media])
 
+  // File ko turant Cloudinary par upload karo — permanent URL milta hai
+  useEffect(() => {
+    if (!media || media.type.startsWith("video/")) {
+      return
+    }
+
+    let cancelled = false
+    setIsUploading(true)
+    setUploadedUrl("")
+    setUploadError("")
+
+    apiUploadMedia(media)
+      .then((data) => {
+        if (!cancelled) setUploadedUrl(data.url)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setUploadError(error.message)
+          console.error("Upload failed:", error.message)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsUploading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [media])
   useEffect(() => {
     if (schedulePreset) {
       setPublishMode("schedule")
@@ -106,11 +140,11 @@ export function CreatePost({
     const fallbackImage =
       "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160"
 
-    const image = media
-      ? media.type.startsWith("video/")
-        ? fallbackImage
-        : await createThumbnail(media)
-      : fallbackImage
+      const image = uploadedUrl
+      ? uploadedUrl
+      : media && !media.type.startsWith("video/")
+        ? await createThumbnail(media)
+        : fallbackImage
 
     onPublish({
       id: createId(),
@@ -229,8 +263,14 @@ export function CreatePost({
                   >
                     Media
                   </label>
-                  <span className="text-xs text-slate-400">
-                    JPG, PNG, MP4 up to 100MB
+                                   <span className="text-xs text-slate-400">
+                    {isUploading
+                      ? "Uploading… ⏳"
+                      : uploadError
+                        ? "Upload failed — dobara choose karo"
+                        : uploadedUrl
+                          ? "Uploaded ✓"
+                          : "JPG, PNG, WebP up to 4MB"}
                   </span>
                 </div>
                 <label
@@ -360,11 +400,15 @@ export function CreatePost({
 
               <button
                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:shadow-indigo-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                disabled={selectedPlatforms.length === 0 || scheduledInPast}
+                disabled={
+                  isUploading ||
+                  selectedPlatforms.length === 0 ||
+                  scheduledInPast
+                }
                 onClick={handlePublish}
                 type="button"
               >
-                Publish to Selected Accounts
+                {isUploading ? "Uploading media…" : "Publish to Selected Accounts"}
                 <Send className="size-4" />
               </button>
             </div>
