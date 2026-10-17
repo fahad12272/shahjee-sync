@@ -5,6 +5,7 @@ import "dotenv/config"
 import connectDB from "./config/db.js"
 import authRoutes from "./routes/auth.js"
 import postRoutes from "./routes/posts.js"
+import uploadRoutes from "./routes/upload.js"
 
 const app = express()
 
@@ -40,6 +41,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes)
 app.use("/api/posts", postRoutes)
+app.use("/api/upload", uploadRoutes)
 
 // Local dev: server khud listen karta hai. Vercel (serverless) pe sirf export.
 if (!process.env.VERCEL) {
