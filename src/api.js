@@ -91,3 +91,30 @@ export async function apiUpdatePost(id, updates) {
 export async function apiDeletePost(id) {
   await apiRequest(`/posts/${id}`, { method: "DELETE" })
 }
+
+// ---------- Media upload (Cloudinary) ----------
+// NOTE: Yahan apiRequest use nahi kiya kyunki FormData ke saath
+// Content-Type header khud set NAHI karna hota (browser khud boundary lagata hai)
+export async function apiUploadMedia(file) {
+  const token = getToken()
+  const formData = new FormData()
+  formData.append("image", file)
+
+  const res = await fetch(`${API_URL}/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+
+  let data = null
+  try {
+    data = await res.json()
+  } catch {
+    data = null
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || "Upload fail ho gayi — try again")
+  }
+  return data
+}
