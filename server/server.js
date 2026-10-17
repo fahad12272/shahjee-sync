@@ -13,14 +13,18 @@ const allowedOrigins = [
   "https://shahjee-sync.vercel.app",
 ]
 
+// Kisi bhi Vercel project/preview URL (***.vercel.app) ko bhi allow karo
+const isVercelUrl = (origin) => /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || isVercelUrl(origin)) {
         return callback(null, true)
       }
       return callback(new Error("Not allowed by CORS"))
     },
+    credentials: true,
   }),
 )
 
