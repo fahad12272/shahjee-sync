@@ -162,6 +162,8 @@ export function CreatePost({
         hour: "numeric",
         minute: "2-digit",
       }),
+      // Scheduler ke liye exact time (ISO/UTC) — cron isi se publish karta hai
+      scheduledAt: scheduledFor.toISOString(),
       status: publishMode === "schedule" ? "Pending" : "Published",
     })
 
