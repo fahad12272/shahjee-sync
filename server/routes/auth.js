@@ -106,4 +106,128 @@ router.get("/me", protect, async (req, res) => {
   }
 })
 
+// POST /api/auth/forgot-password — reset link generate karke email bhejta hai
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Email zaroori hai" })
+    }
+
+    const user = await User.findOne({
+      email: String(email).toLowerCase().trim(),
+    })
+
+    // Generic message — taake kisi ko pata na chale ke email exist karta hai ya nahi
+    const genericMessage =
+      "Agar ye email registered hai, to password reset link bhej diya gaya hai. Inbox aur spam dono check karein."
+
+    if (!user) {
+      return res.json({ success: true, message: genericMessage })
+    }
+
+    // Random 32-byte token — DB mein sirf uska SHA-256 hash save hota hai
+    const resetToken = crypto.randomBytes(32).toString("hex")
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex")
+
+    user.resetTokenHash = resetTokenHash
+    user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1 ghanta valid
+    await user.save()
+
+    const resetUrl = `${APP_URL}/reset?token=${resetToken}`
+
+    // TESTING MODE: SMTP setup nahi hai to link response mein wapas
+    // (frontend isko amber box mein dikha deta hai). Email bhejne ke liye
+    // SMTP_USER + SMTP_PASS env vars set karo.
+    if (!mailerReady()) {
+      console.log("⚠️ TESTING MODE — reset link directly return kiya:", resetUrl)
+      return res.json({ success: true, message: genericMessage, resetUrl })
+    }
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px">
+        <h2 style="color:#4f46e5;margin-top:0">Shahjee Sync</h2>
+        <p>Salam!</p>
+        <p>Aap ne password reset request ki hai. Neeche wale button se naya password set karein:</p>
+        <p style="text-align:center;margin:28px 0">
+          <a href="${resetUrl}" style="background-color:#4f46e5;color:#ffffff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">Reset Password</a>
+        </p>
+        <p style="color:#64748b;font-size:13px">Ye link 1 ghante ke liye valid hai. Agar aap ne request nahi ki thi, to is email ko ignore karein — aapka password waisa hi rahega.</p>
+        <p style="color:#94a3b8;font-size:12px">— Shahjee Sync team</p>
+      </div>`
+
+    await transporter.sendMail({
+      from: `"Shahjee Sync" <${process.env.SMTP_USER}>`,
+      to: user.email,
+      subject: "Reset your password — Shahjee Sync",
+      html: emailHtml,
+    })
+
+    res.json({ success: true, message: genericMessage })
+  } catch (error) {
+    console.error("❌ FORGOT PASSWORD ERROR:", error)
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// POST /api/auth/reset-password — token verify karke naya password set karta hai
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Token aur naya password dono zaroori hain",
+      })
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "Password kam se kam 6 characters ka hona chahiye",
+      })
+    }
+
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(String(token))
+      .digest("hex")
+
+    const user = await User.findOne({
+      resetTokenHash,
+      resetTokenExpiry: { $gt: new Date() },
+    })
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Reset link invalid ya expire ho gaya — dobara 'Forgot password' se request karein",
+      })
+    }
+
+    // pre-save hook khud bcrypt hash kar dega
+    user.password = password
+    user.resetTokenHash = ""
+    user.resetTokenExpiry = null
+    await user.save()
+
+    res.json({
+      success: true,
+      message:
+        "Password successfully change ho gaya! Ab naye password se login karein.",
+    })
+  } catch (error) {
+    console.error("❌ RESET PASSWORD ERROR:", error)
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
 export default router
