@@ -21,6 +21,10 @@ const postSchema = new mongoose.Schema(
       enum: ["Pending", "Published", "Failed"],
       default: "Pending",
     },
+    // Exact scheduled time (ISO) — scheduler isi se decide karta hai
+    scheduledAt: { type: Date, default: null },
+    // Kab actually publish hua
+    publishedAt: { type: Date, default: null },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
