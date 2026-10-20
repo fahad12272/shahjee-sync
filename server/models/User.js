@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Password reset (kabhi expire hone wale reset tokens)
+    resetTokenHash: { type: String, default: "" },
+    resetTokenExpiry: { type: Date, default: null },
   },
   { timestamps: true },
 )
