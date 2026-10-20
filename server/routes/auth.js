@@ -1,9 +1,13 @@
 import express from "express"
+import crypto from "node:crypto"
 import jwt from "jsonwebtoken"
 import User from "../models/User.js"
 import { protect } from "../middleware/auth.js"
+import transporter, { mailerReady } from "../config/mailer.js"
 
 const router = express.Router()
+
+const APP_URL = process.env.APP_URL || "https://shahjee-sync.vercel.app"
 
 const generateToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" })
