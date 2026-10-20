@@ -1,6 +1,7 @@
 import express from "express"
 import cors from "cors"
 import "dotenv/config"
+import cronRoutes from "./routes/cron.js"
 
 import connectDB from "./config/db.js"
 import authRoutes from "./routes/auth.js"
@@ -42,6 +43,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes)
 app.use("/api/posts", postRoutes)
 app.use("/api/upload", uploadRoutes)
+app.use("/api/cron", cronRoutes)
 
 // Local dev: server khud listen karta hai. Vercel (serverless) pe sirf export.
 if (!process.env.VERCEL) {
