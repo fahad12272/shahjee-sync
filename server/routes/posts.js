@@ -8,7 +8,7 @@ router.use(protect)
 
 router.post("/", async (req, res) => {
   try {
-    const { title, image, platforms, date, time, status } = req.body
+    const { title, image, platforms, date, time, status, scheduledAt } = req.body
 
     if (!title || title.trim().length === 0) {
       return res
@@ -23,6 +23,8 @@ router.post("/", async (req, res) => {
       date,
       time,
       status,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      publishedAt: status === "Published" ? new Date() : null,
       user: req.user._id,
     })
 
@@ -69,7 +71,16 @@ router.put("/:id", async (req, res) => {
       })
     }
 
-    const updates = ["title", "image", "platforms", "date", "time", "status"]
+    const updates = [
+      "title",
+      "image",
+      "platforms",
+      "date",
+      "time",
+      "status",
+      "scheduledAt",
+    ]
+    
     updates.forEach((field) => {
       if (req.body[field] !== undefined) {
         post[field] = req.body[field]
