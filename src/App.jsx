@@ -28,11 +28,25 @@ import {
   queuedPosts,
   saveAccounts,
 } from "./data"
+import {
+  ForgotPasswordPage,
+  ResetPasswordPage,
+} from "./pages/PasswordPages"
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [authView, setAuthView] = useState("landing")
+  const [authView, setAuthView] = useState(() => {
+    // Email ke reset link (/reset?token=...) pe seedha reset page khule
+    if (
+      typeof window !== "undefined" &&
+      window.location.pathname === "/reset" &&
+      new URLSearchParams(window.location.search).get("token")
+    ) {
+      return "reset"
+    }
+    return "landing"
+  })
 
   // Page load pe token check karo — valid hai to seedha workspace
   useEffect(() => {
@@ -83,6 +97,21 @@ export default function App() {
         <LandingPage
           onGetStarted={() => setAuthView("signup")}
           onLogin={() => setAuthView("login")}
+        />
+      )
+    }
+        if (authView === "forgot") {
+      return <ForgotPasswordPage onBack={() => setAuthView("login")} />
+    }
+    if (authView === "reset") {
+      return (
+        <ResetPasswordPage
+          token={new URLSearchParams(window.location.search).get("token")}
+          onSuccess={() => {
+            // URL se token hata ke login pe le jao
+            window.history.replaceState({}, "", "/")
+            setAuthView("login")
+          }}
         />
       )
     }
