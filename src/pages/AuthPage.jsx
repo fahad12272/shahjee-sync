@@ -189,6 +189,18 @@ export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
                 {isSignup ? "Create account" : "Log in"}
                 <ArrowRight className="size-4" />
               </button>
+
+              {!isSignup && (
+                <p className="text-center">
+                  <button
+                    className="text-xs font-semibold text-slate-500 transition hover:text-indigo-600"
+                    onClick={() => onSwitchMode("forgot")}
+                    type="button"
+                  >
+                    Password bhool gaye? Reset karein
+                  </button>
+                </p>
+              )}
             </form>
 
             <p className="mt-6 text-center text-sm text-slate-500">
