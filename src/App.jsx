@@ -268,10 +268,16 @@ function WorkspaceApp({ onLogout, user }) {
     if (!original) return
     try {
       const { id: _, ...copyData } = original
+      const { id: _, ...copyData } = original
+      // Future schedule rakho; past/published wala clear karo
+      // warna cron copy ko turant publish kar dega
+      const keepSchedule =
+        copyData.scheduledAt && new Date(copyData.scheduledAt) > new Date()
       const copy = await apiCreatePost({
         ...copyData,
         title: `${original.title} (Copy)`,
         status: "Pending",
+        scheduledAt: keepSchedule ? copyData.scheduledAt : null,
       })
       setPosts((current) => [copy, ...current])
       showToast("Post duplicated as Pending")
@@ -294,12 +300,26 @@ function WorkspaceApp({ onLogout, user }) {
     }
   }
 
-  const handleReschedulePost = async (id, date, time) => {
+  const handleReschedulePost = async (id, date, time, scheduledAt) => {
     try {
-      await apiUpdatePost(id, { date, time, status: "Pending" })
+      await apiUpdatePost(id, {
+        date,
+        time,
+        status: "Pending",
+        // Cron exact isi time pe publish karega — purana scheduledAt overwrite zaroori
+        scheduledAt: scheduledAt || null,
+      })
       setPosts((current) =>
         current.map((post) =>
-          post.id === id ? { ...post, date, time, status: "Pending" } : post,
+          post.id === id
+            ? {
+                ...post,
+                date,
+                time,
+                status: "Pending",
+                scheduledAt: scheduledAt || null,
+              }
+            : post,
         ),
       )
       showToast(`Rescheduled to ${date}, ${time}`)
@@ -308,7 +328,6 @@ function WorkspaceApp({ onLogout, user }) {
       showToast(error.message, "error")
     }
   }
-
   const handleToggleAccount = (name) => {
     const target = accounts.find((account) => account.name === name)
     const willConnect = target?.status !== "Connected"
@@ -392,6 +411,7 @@ function WorkspaceApp({ onLogout, user }) {
         )
         .map((item) => ({
           title: String(item.title),
+          caption: typeof item.caption === "string" ? item.caption : "",
           image:
             typeof item.image === "string"
               ? item.image
