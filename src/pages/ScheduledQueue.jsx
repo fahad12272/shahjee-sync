@@ -63,7 +63,12 @@ function PostModal({
 
     const combined = new Date(`${dateValue}T${timeValue}`)
     if (Number.isNaN(combined.getTime())) return
-    onSaveReschedule(formatDateLabel(combined), formatTimeLabel(combined))
+    // Teesra arg = exact ISO time — cron isi se publish karta hai
+    onSaveReschedule(
+      formatDateLabel(combined),
+      formatTimeLabel(combined),
+      combined.toISOString(),
+    )
   }
 
   return (
@@ -476,8 +481,8 @@ export function ScheduledQueue({
                             <div className="text-sm font-bold text-slate-800">
                               {post.title}
                             </div>
-                            <div className="mt-1 text-xs text-slate-400">
-                              Image post
+                            <div className="mt-1 max-w-[26rem] truncate text-xs text-slate-400">
+                              {post.caption ? post.caption : "Image post"}
                             </div>
                           </div>
                         </div>
@@ -624,8 +629,8 @@ export function ScheduledQueue({
             onEditPost(editingPost.id, title)
             setEditingPost(null)
           }}
-          onSaveReschedule={(date, time) => {
-            onReschedulePost(editingPost.id, date, time)
+          onSaveReschedule={(date, time, iso) => {
+            onReschedulePost(editingPost.id, date, time, iso)
             setEditingPost(null)
           }}
           post={editingPost}
