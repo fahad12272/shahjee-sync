@@ -135,3 +135,25 @@ export async function apiUploadMedia(file) {
   }
   return data
 }
+
+// ---------- Settings (profile / password / account) ----------
+export async function apiUpdateProfile(name) {
+  const data = await apiRequest("/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  })
+  return data.user
+}
+
+export async function apiChangePassword(currentPassword, newPassword) {
+  const data = await apiRequest("/auth/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  return data
+}
+
+export async function apiDeleteAccount() {
+  const data = await apiRequest("/auth/account", { method: "DELETE" })
+  return data
+}
