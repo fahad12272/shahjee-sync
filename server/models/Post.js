@@ -8,6 +8,12 @@ const postSchema = new mongoose.Schema(
       trim: true,
       maxlength: [100, "Title cannot be more than 100 characters"],
     },
+    // Full caption jo user ne likhi (real X/IG posting isi text se hogi)
+    caption: {
+      type: String,
+      default: "",
+      maxlength: [2200, "Caption cannot be more than 2200 characters"],
+    },
     image: {
       type: String,
       default:
