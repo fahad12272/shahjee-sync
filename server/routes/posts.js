@@ -8,7 +8,7 @@ router.use(protect)
 
 router.post("/", async (req, res) => {
   try {
-    const { title, image, platforms, date, time, status, scheduledAt } = req.body
+    const { title, image, caption, platforms, date, time, status, scheduledAt } = req.body
 
     if (!title || title.trim().length === 0) {
       return res
@@ -18,6 +18,7 @@ router.post("/", async (req, res) => {
 
     const post = await Post.create({
       title: title.trim(),
+      caption: typeof caption === "string" ? caption : "",
       image,
       platforms,
       date,
@@ -73,6 +74,7 @@ router.put("/:id", async (req, res) => {
 
     const updates = [
       "title",
+      "caption",
       "image",
       "platforms",
       "date",
