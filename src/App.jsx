@@ -503,6 +503,7 @@ function WorkspaceApp({ onLogout, user }) {
             onExportData={handleExportData}
             onImportData={handleImportData}
             onResetData={handleResetData}
+            onProfileUpdated={setUser}
             user={user}
           />
         ) : (
