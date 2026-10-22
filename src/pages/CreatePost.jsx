@@ -151,6 +151,8 @@ export function CreatePost({
       title: caption.trim()
         ? caption.trim().split(/\s+/).slice(0, 4).join(" ")
         : "Untitled post",
+      // Poori caption DB mein save hoti hai — title sirf card display ke liye
+      caption,
       image,
       platforms: targets.map((name) => platformKeyMap[name] ?? "instagram"),
       date: scheduledFor.toLocaleDateString("en-US", {
