@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken"
 import User from "../models/User.js"
 import { protect } from "../middleware/auth.js"
 import transporter, { mailerReady } from "../config/mailer.js"
-import User from "../models/User.js"
 import Post from "../models/Post.js"
 
 const router = express.Router()
