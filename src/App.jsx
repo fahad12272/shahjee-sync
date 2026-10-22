@@ -268,7 +268,6 @@ function WorkspaceApp({ onLogout, user }) {
     if (!original) return
     try {
       const { id: _, ...copyData } = original
-      const { id: _, ...copyData } = original
       // Future schedule rakho; past/published wala clear karo
       // warna cron copy ko turant publish kar dega
       const keepSchedule =
