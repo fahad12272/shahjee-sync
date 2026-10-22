@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken"
 import User from "../models/User.js"
 import { protect } from "../middleware/auth.js"
 import transporter, { mailerReady } from "../config/mailer.js"
+import User from "../models/User.js"
+import Post from "../models/Post.js"
 
 const router = express.Router()
 
@@ -226,6 +228,120 @@ router.post("/reset-password", async (req, res) => {
     })
   } catch (error) {
     console.error("❌ RESET PASSWORD ERROR:", error)
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// PUT /api/auth/profile — logged-in user apna naam update karta hai
+router.put("/profile", protect, async (req, res) => {
+  try {
+    const { name } = req.body
+
+    if (!name || String(name).trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: "Naam kam se kam 2 characters ka hona chahiye",
+      })
+    }
+
+    if (String(name).trim().length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: "Naam 50 characters se zyada nahi ho sakta",
+      })
+    }
+
+    const user = await User.findById(req.user._id)
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, error: "User not found" })
+    }
+
+    user.name = String(name).trim()
+    await user.save()
+
+    res.json({
+      success: true,
+      message: "Profile update ho gaya! ✅",
+      user: { id: user._id, name: user.name, email: user.email },
+    })
+  } catch (error) {
+    console.error("❌ PROFILE UPDATE ERROR:", error)
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// PUT /api/auth/password — logged-in user password change karta hai
+// (current password verify hota hai — reset-password se alag ye logged-in flow hai)
+router.put("/password", protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Current aur naya password dono zaroori hain",
+      })
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "Naya password kam se kam 6 characters ka hona chahiye",
+      })
+    }
+
+    const user = await User.findById(req.user._id)
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, error: "User not found" })
+    }
+
+    const isMatch = await user.comparePassword(currentPassword)
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: "Current password galat hai — dobara try karein",
+      })
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Naya password purane jaisa nahi ho sakta",
+      })
+    }
+
+    // pre-save hook khud bcrypt hash kar dega
+    user.password = newPassword
+    await user.save()
+
+    res.json({
+      success: true,
+      message: "Password change ho gaya! 🔐",
+    })
+  } catch (error) {
+    console.error("❌ PASSWORD CHANGE ERROR:", error)
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// DELETE /api/auth/account — account + saari posts permanently delete
+router.delete("/account", protect, async (req, res) => {
+  try {
+    // Pehle is user ki saari posts delete karo
+    await Post.deleteMany({ user: req.user._id })
+    // Phir user hi delete karo
+    await User.findByIdAndDelete(req.user._id)
+
+    res.json({
+      success: true,
+      message: "Account aur saara data permanently delete ho gaya",
+    })
+  } catch (error) {
+    console.error("❌ ACCOUNT DELETE ERROR:", error)
     res.status(500).json({ success: false, error: "Server error — try again" })
   }
 })
