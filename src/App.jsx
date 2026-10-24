@@ -17,16 +17,13 @@ import {
   apiCreatePost,
   apiUpdatePost,
   apiDeletePost,
+  apiGetPlatforms,
   getToken,
   removeToken,
 } from "./api"
 import {
-  accountToPlatform,
-  connectedAccounts,
   createId,
-  loadAccounts,
   queuedPosts,
-  saveAccounts,
 } from "./data"
 import {
   ForgotPasswordPage,
@@ -132,7 +129,8 @@ function WorkspaceApp({ onLogout, user }) {
   const [activePage, setActivePage] = useState("Create Post")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [posts, setPosts] = useState([])
-  const [accounts, setAccounts] = useState(() => loadAccounts(user.email))
+  // Platform connections — BACKEND se (X / Telegram), localStorage mock nahi
+  const [platforms, setPlatforms] = useState(null)
   const [toasts, setToasts] = useState([])
   const [activities, setActivities] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -163,10 +161,20 @@ function WorkspaceApp({ onLogout, user }) {
     setUnreadCount((current) => current + 1)
   }
 
-  // Accounts abhi localStorage pe hain (Day 10 mein API pe jayenge)
+  const fetchPlatforms = async () => {
+    try {
+      const data = await apiGetPlatforms()
+      setPlatforms(data)
+    } catch {
+      // Fail ho to khali state — CreatePost cards disabled rahenge
+      setPlatforms({})
+    }
+  }
+
+  // Platform connections load karo (connect/disconnect ke baad bhi refresh)
   useEffect(() => {
-    saveAccounts(user.email, accounts)
-  }, [accounts, user.email])
+    fetchPlatforms()
+  }, [])
 
   // Posts BACKEND SE load karo 🚀
   useEffect(() => {
@@ -186,10 +194,13 @@ function WorkspaceApp({ onLogout, user }) {
     document.title = `${title} — Shahjee Sync`
   }, [activePage])
 
-  const connectedPlatforms = accounts
-    .filter((account) => account.status === "Connected")
-    .map((account) => accountToPlatform[account.name])
-    .filter((platform) => Boolean(platform))
+  // Real connected platforms — backend keys se display names banao
+  const connectedPlatforms = platforms
+    ? [
+        platforms.x?.connected ? "X" : null,
+        platforms.telegram?.connected ? "Telegram" : null,
+      ].filter(Boolean)
+    : []
 
   const restorePosts = async (removedList) => {
     try {
@@ -327,31 +338,8 @@ function WorkspaceApp({ onLogout, user }) {
       showToast(error.message, "error")
     }
   }
-  const handleToggleAccount = (name) => {
-    const target = accounts.find((account) => account.name === name)
-    const willConnect = target?.status !== "Connected"
-
-    setAccounts((current) =>
-      current.map((account) =>
-        account.name === name
-          ? {
-              ...account,
-              status: willConnect ? "Connected" : "Not Connected",
-            }
-          : account,
-      ),
-    )
-
-    showToast(
-      willConnect ? `${name} connected` : `${name} disconnected`,
-      willConnect ? "success" : "info",
-    )
-    addActivity(
-      willConnect
-        ? `${name} account was connected`
-        : `${name} account was disconnected`,
-      "account",
-    )
+  const handlePlatformsChanged = () => {
+    fetchPlatforms()
   }
 
   const handleResetData = async () => {
@@ -476,8 +464,9 @@ function WorkspaceApp({ onLogout, user }) {
         />
         {activePage === "Connected Accounts" ? (
           <ConnectedAccounts
-            accounts={accounts}
-            onToggleAccount={handleToggleAccount}
+            addActivity={addActivity}
+            onPlatformsChanged={handlePlatformsChanged}
+            showToast={showToast}
           />
         ) : activePage === "Scheduled Queue" ? (
           <ScheduledQueue
