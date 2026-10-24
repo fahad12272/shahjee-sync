@@ -9,6 +9,7 @@ import connectDB from "./config/db.js"
 import authRoutes from "./routes/auth.js"
 import postRoutes from "./routes/posts.js"
 import uploadRoutes from "./routes/upload.js"
+import platformRoutes from "./routes/platforms.js"
 
 const app = express()
 
@@ -121,6 +122,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes)
 app.use("/api/posts", postRoutes)
 app.use("/api/upload", uploadRoutes)
+app.use("/api/platforms", platformRoutes)
 app.use("/api/cron", cronRoutes)
 
 // ---------- 404 + global error handler (JSON only) ----------
