@@ -11,6 +11,7 @@ import {
   Music2,
   PenLine,
   Repeat2,
+  Send,
   Settings,
   Users,
 } from "lucide-react"
@@ -67,6 +68,12 @@ export const platforms = [
     icon: AtSign,
     active: "border-slate-700 bg-slate-50 text-slate-900",
     check: "bg-slate-800",
+  },
+  {
+    name: "Telegram",
+    icon: Send,
+    active: "border-sky-400 bg-sky-50/60 text-sky-700",
+    check: "bg-sky-500",
   },
 ]
 
@@ -180,6 +187,7 @@ export const platformIconMap = {
   linkedin: { icon: FaLinkedinIn, style: "bg-sky-700" },
   tiktok: { icon: FaTiktok, style: "bg-slate-950" },
   x: { icon: FaXTwitter, style: "bg-slate-950" },
+  telegram: { icon: Send, style: "bg-sky-500" },
 }
 
 export const analyticsStats = [
@@ -259,6 +267,7 @@ export const platformKeyMap = {
   TikTok: "tiktok",
   LinkedIn: "linkedin",
   X: "x",
+  Telegram: "telegram",
 }
 
 export const readFileAsDataUrl = (file) =>
