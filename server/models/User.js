@@ -1,6 +1,30 @@
 import mongoose from "mongoose"
 import bcrypt from "bcryptjs"
 
+// X (Twitter) keys — values AES-256-GCM encrypted store hoti hain
+const xPlatformSchema = new mongoose.Schema(
+  {
+    apiKey: { type: String, default: "" },
+    apiSecret: { type: String, default: "" },
+    accessToken: { type: String, default: "" },
+    accessSecret: { type: String, default: "" },
+    handle: { type: String, default: "" },
+    connectedAt: { type: Date, default: null },
+  },
+  { _id: false },
+)
+
+// Telegram bot — values AES-256-GCM encrypted store hoti hain
+const telegramPlatformSchema = new mongoose.Schema(
+  {
+    botToken: { type: String, default: "" },
+    chatId: { type: String, default: "" },
+    chatTitle: { type: String, default: "" },
+    connectedAt: { type: Date, default: null },
+  },
+  { _id: false },
+)
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -29,6 +53,11 @@ const userSchema = new mongoose.Schema(
     // Password reset (kabhi expire hone wale reset tokens)
     resetTokenHash: { type: String, default: "" },
     resetTokenExpiry: { type: Date, default: null },
+        // Social platform connections (secrets encrypted — API se raw kabhi nahi jaate)
+    platforms: {
+      x: { type: xPlatformSchema, default: () => ({}) },
+      telegram: { type: telegramPlatformSchema, default: () => ({}) },
+    },
   },
   { timestamps: true },
 )
