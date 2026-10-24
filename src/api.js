@@ -157,3 +157,37 @@ export async function apiDeleteAccount() {
   const data = await apiRequest("/auth/account", { method: "DELETE" })
   return data
 }
+
+// ---------- Platform connections (X / Telegram) ----------
+export async function apiGetPlatforms() {
+  const data = await apiRequest("/platforms")
+  return data.platforms
+}
+
+export async function apiConnectX({
+  apiKey,
+  apiSecret,
+  accessToken,
+  accessSecret,
+}) {
+  const data = await apiRequest("/platforms/x", {
+    method: "PUT",
+    body: JSON.stringify({ apiKey, apiSecret, accessToken, accessSecret }),
+  })
+  return data
+}
+
+export async function apiConnectTelegram({ botToken, chatId }) {
+  const data = await apiRequest("/platforms/telegram", {
+    method: "PUT",
+    body: JSON.stringify({ botToken, chatId }),
+  })
+  return data
+}
+
+export async function apiDisconnectPlatform(platform) {
+  const data = await apiRequest(`/platforms/${platform}`, {
+    method: "DELETE",
+  })
+  return data
+}
