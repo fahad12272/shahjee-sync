@@ -31,6 +31,16 @@ const postSchema = new mongoose.Schema(
     scheduledAt: { type: Date, default: null },
     // Kab actually publish hua
     publishedAt: { type: Date, default: null },
+    // Per-platform publish results (cron fill karta hai)
+    publishResults: [
+      {
+        platform: { type: String, default: "" },
+        success: { type: Boolean, default: false },
+        url: { type: String, default: "" },
+        error: { type: String, default: "" },
+        at: { type: Date, default: null },
+      },
+    ],
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
