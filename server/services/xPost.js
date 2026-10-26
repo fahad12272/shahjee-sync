@@ -1,9 +1,13 @@
 import crypto from "node:crypto"
 
-// X (Twitter) API v2 publishing — OAuth 1.0a (HMAC-SHA1), zero dependencies
+// X (Twitter) API v2 publishing — zero dependencies
+// Do auth tarike:
+//   1. OAuth 1.0a (HMAC-SHA1) — manual keys wale users
+//   2. OAuth 2.0 Bearer token — 1-click "Connect with X" wale users
 // Docs: https://docs.x.com/x-api/posts
 
-const API_BASE = "https://api.x.com"
+// Test/mock ke liye override possible — prod mein hamesha api.x.com
+const API_BASE = process.env.X_API_BASE || "https://api.x.com"
 
 function percentEncode(value) {
   return encodeURIComponent(String(value)).replace(
@@ -49,6 +53,12 @@ function oauthHeader(method, url, creds, extraParams = {}) {
   )
 }
 
+// auth = { creds } (OAuth 1.0a) ya { bearer } (OAuth 2.0) — ek jagah se decide hota hai
+function authHeader(method, url, auth, extraParams = {}) {
+  if (auth?.bearer) return `Bearer ${auth.bearer}`
+  return oauthHeader(method, url, auth?.creds, extraParams)
+}
+
 function xError(data, status) {
   return new Error(
     data?.detail ||
@@ -58,7 +68,7 @@ function xError(data, status) {
   )
 }
 
-// Credentials verify — GET /2/users/me
+// Credentials verify — GET /2/users/me (sirf OAuth 1.0a keys ke liye)
 export async function verifyXCredentials(creds) {
   const url = `${API_BASE}/2/users/me`
   const res = await fetch(url, {
@@ -73,7 +83,8 @@ export async function verifyXCredentials(creds) {
 }
 
 // Image ko X pe upload karo — v2 chunked flow (INIT → APPEND → FINALIZE)
-async function uploadXMedia(imageUrl, creds) {
+// Dono auth types support karta hai (Bearer + OAuth 1.0a)
+async function uploadXMedia(imageUrl, auth) {
   const imgRes = await fetch(imageUrl)
   if (!imgRes.ok) throw new Error(`Image download fail: HTTP ${imgRes.status}`)
   const buffer = Buffer.from(await imgRes.arrayBuffer())
@@ -88,7 +99,7 @@ async function uploadXMedia(imageUrl, creds) {
   const initRes = await fetch(initUrl, {
     method: "POST",
     headers: {
-      Authorization: oauthHeader("POST", initUrl, creds),
+      Authorization: authHeader("POST", initUrl, auth),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -112,7 +123,7 @@ async function uploadXMedia(imageUrl, creds) {
   )
   const appendRes = await fetch(appendUrl, {
     method: "POST",
-    headers: { Authorization: oauthHeader("POST", appendUrl, creds) },
+    headers: { Authorization: authHeader("POST", appendUrl, auth) },
     body: form,
   })
   if (!appendRes.ok && appendRes.status !== 204) {
@@ -124,7 +135,7 @@ async function uploadXMedia(imageUrl, creds) {
   const finalizeUrl = `${API_BASE}/2/media/upload/${mediaId}/finalize`
   const finalizeRes = await fetch(finalizeUrl, {
     method: "POST",
-    headers: { Authorization: oauthHeader("POST", finalizeUrl, creds) },
+    headers: { Authorization: authHeader("POST", finalizeUrl, auth) },
   })
   const finalizeData = await finalizeRes.json().catch(() => ({}))
   if (!finalizeRes.ok) throw xError(finalizeData, finalizeRes.status)
@@ -133,14 +144,18 @@ async function uploadXMedia(imageUrl, creds) {
 }
 
 // Post publish karo — POST /2/tweets
-export async function publishToX({ text, imageUrl, creds }) {
+// auth: { creds } OAuth 1.0a ke liye YA { bearer } OAuth 2.0 ke liye
+export async function publishToX({ text, imageUrl, creds, bearer }) {
   const clean = String(text || "").trim()
   const body = {
     text: clean.length > 280 ? clean.slice(0, 277) + "…" : clean,
   }
 
+  const auth = bearer ? { bearer } : { creds }
+  if (!bearer && !creds) throw new Error("X auth missing — dobara connect karo")
+
   if (imageUrl) {
-    const mediaId = await uploadXMedia(imageUrl, creds)
+    const mediaId = await uploadXMedia(imageUrl, auth)
     body.media = { media_ids: [mediaId] }
   }
 
@@ -148,7 +163,7 @@ export async function publishToX({ text, imageUrl, creds }) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: oauthHeader("POST", url, creds),
+      Authorization: authHeader("POST", url, auth),
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
