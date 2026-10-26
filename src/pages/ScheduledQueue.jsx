@@ -8,10 +8,12 @@ import {
   Check,
   Clock3,
   Copy,
+  ExternalLink,
   MoreHorizontal,
   Pencil,
   Search,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react"
 import {
@@ -531,6 +533,38 @@ export function ScheduledQueue({
                           />
                           {post.status}
                         </span>
+                        {post.publishResults?.length > 0 ? (
+                          <div className="mt-1.5 flex flex-col items-start gap-1">
+                            {post.publishResults.map((result, resultIndex) => {
+                              const config = platformIconMap[result.platform]
+                              if (!config) return null
+                              return result.success ? (
+                                <a
+                                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                  href={result.url || "#"}
+                                  key={`${post.id}-${resultIndex}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                  title="Published post dekho"
+                                >
+                                  <config.icon className="size-3" />
+                                  View
+                                  <ExternalLink className="size-2.5" />
+                                </a>
+                              ) : (
+                                <span
+                                  className="inline-flex cursor-help items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700"
+                                  key={`${post.id}-${resultIndex}`}
+                                  title={result.error || "Publish fail hui"}
+                                >
+                                  <config.icon className="size-3" />
+                                  Fail
+                                  <TriangleAlert className="size-2.5" />
+                                </span>
+                              )
+                            })}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="relative px-5 py-4 text-right">
                         <button
