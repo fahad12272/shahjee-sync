@@ -1,15 +1,44 @@
 import express from "express"
 import Post from "../models/Post.js"
 import User from "../models/User.js"
-import { decryptSecret } from "../utils/secureStore.js"
+import {
+  decryptSecret,
+  encryptSecret,
+} from "../utils/secureStore.js"
 import { publishToX } from "../services/xPost.js"
+import { refreshX2Token } from "../utils/xOAuth.js"
 import { publishToTelegram } from "../services/telegramPost.js"
+import { publishToFacebook } from "../services/fbPost.js"
+import { publishToInstagram } from "../services/igPost.js"
+import { publishToThreads } from "../services/threadsPost.js"
+import { publishToLinkedIn } from "../services/linkedinPost.js"
+import { refreshThreadsToken } from "../utils/metaOAuth.js"
+import { refreshLinkedInToken } from "../utils/linkedinOAuth.js"
 
 const router = express.Router()
 
 // CreatePost ka default placeholder image — real photo nahi hai, skip karte hain
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160"
+
+// OAuth 2.0 access token 2 ghante mein expire hota hai — publish se pehle
+// expiry check karke zaroorat ho to refresh karo (naya refresh token bhi save hota hai)
+async function getFreshX2Bearer(user) {
+  const xp = user.platforms.x
+  const expiresAt = xp.oauth2ExpiresAt ? new Date(xp.oauth2ExpiresAt).getTime() : 0
+  if (expiresAt && expiresAt - Date.now() > 60 * 1000) {
+    return decryptSecret(xp.oauth2AccessToken) // abhi fresh hai
+  }
+
+  console.log(`🔄 Cron: X OAuth token refresh (${user.email})`)
+  const refreshed = await refreshX2Token(decryptSecret(xp.oauth2RefreshToken))
+  xp.oauth2AccessToken = encryptSecret(refreshed.accessToken)
+  xp.oauth2RefreshToken = encryptSecret(refreshed.refreshToken)
+  xp.oauth2ExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000)
+  xp.authType = "oauth2"
+  await user.save()
+  return refreshed.accessToken
+}
 
 // GET /api/cron/publish — jinki scheduled time aa gayi hai un posts ko
 // Published karta hai + selected platforms pe real posting karta hai (X, Telegram)
@@ -78,21 +107,31 @@ router.get("/publish", async (req, res) => {
           try {
             if (platform === "x") {
               const xp = user?.platforms?.x
-              if (!xp?.accessToken || !xp?.apiKey) {
+              const isOAuth2 = Boolean(xp?.oauth2AccessToken && xp?.oauth2RefreshToken)
+              const hasKeys = Boolean(xp?.accessToken && xp?.apiKey)
+
+              if (!isOAuth2 && !hasKeys) {
                 throw new Error(
-                  "X connected nahi hai — Connected Accounts page pe keys add karo",
+                  "X connected nahi hai — Connected Accounts page pe connect karo",
                 )
               }
-              const r = await publishToX({
-                text,
-                imageUrl: image,
-                creds: {
-                  apiKey: decryptSecret(xp.apiKey),
-                  apiSecret: decryptSecret(xp.apiSecret),
-                  accessToken: decryptSecret(xp.accessToken),
-                  accessSecret: decryptSecret(xp.accessSecret),
-                },
-              })
+
+              const r = isOAuth2
+                ? await publishToX({
+                    text,
+                    imageUrl: image,
+                    bearer: await getFreshX2Bearer(user),
+                  })
+                : await publishToX({
+                    text,
+                    imageUrl: image,
+                    creds: {
+                      apiKey: decryptSecret(xp.apiKey),
+                      apiSecret: decryptSecret(xp.apiSecret),
+                      accessToken: decryptSecret(xp.accessToken),
+                      accessSecret: decryptSecret(xp.accessSecret),
+                    },
+                  })
               result.success = true
               result.url = r.url
             } else if (platform === "telegram") {
@@ -109,6 +148,111 @@ router.get("/publish", async (req, res) => {
                   botToken: decryptSecret(tp.botToken),
                   chatId: decryptSecret(tp.chatId),
                 },
+              })
+              result.success = true
+              result.url = r.url
+            } else if (platform === "facebook") {
+              const fp = user?.platforms?.facebook
+              if (!fp?.pageId || !fp?.pageToken) {
+                throw new Error(
+                  "Facebook connected nahi hai — Connected Accounts page pe connect karo",
+                )
+              }
+              const r = await publishToFacebook({
+                text,
+                imageUrl: image,
+                creds: {
+                  pageId: fp.pageId,
+                  pageToken: decryptSecret(fp.pageToken),
+                },
+              })
+              result.success = true
+              result.url = r.url
+            } else if (platform === "instagram") {
+              const ip = user?.platforms?.instagram
+              if (!ip?.igUserId || !ip?.pageToken) {
+                throw new Error(
+                  "Instagram connected nahi hai — Connected Accounts page pe connect karo",
+                )
+              }
+              const r = await publishToInstagram({
+                text,
+                imageUrl: image,
+                creds: {
+                  igUserId: ip.igUserId,
+                  pageToken: decryptSecret(ip.pageToken),
+                },
+              })
+              result.success = true
+              result.url = r.url
+            } else if (platform === "threads") {
+              const thp = user?.platforms?.threads
+              if (!thp?.userId || !thp?.accessToken) {
+                throw new Error(
+                  "Threads connected nahi hai — Connected Accounts page pe connect karo",
+                )
+              }
+              // Long-lived token ~60 din ka — expiry ke 7 din andar ho to pehle refresh
+              let threadsToken = decryptSecret(thp.accessToken)
+              const thExpiry = thp.expiresAt
+                ? new Date(thp.expiresAt).getTime()
+                : 0
+              if (thExpiry && thExpiry - Date.now() < 7 * 24 * 3600 * 1000) {
+                console.log(`🔄 Cron: Threads token refresh (${user.email})`)
+                const refreshed = await refreshThreadsToken(threadsToken)
+                threadsToken = refreshed.accessToken
+                thp.accessToken = encryptSecret(threadsToken)
+                thp.expiresAt = new Date(
+                  Date.now() + (refreshed.expiresIn || 60 * 24 * 3600) * 1000,
+                )
+                await user.save()
+              }
+              const r = await publishToThreads({
+                text,
+                imageUrl: image,
+                creds: { userId: thp.userId, accessToken: threadsToken },
+              })
+              result.success = true
+              result.url = r.url
+            } else if (platform === "linkedin") {
+              const lp = user?.platforms?.linkedin
+              if (!lp?.memberUrn || !lp?.accessToken) {
+                throw new Error(
+                  "LinkedIn connected nahi hai — Connected Accounts page pe connect karo",
+                )
+              }
+              let liToken = decryptSecret(lp.accessToken)
+              const liExpiry = lp.expiresAt
+                ? new Date(lp.expiresAt).getTime()
+                : 0
+              const hasLiRefresh = Boolean(lp.refreshToken)
+
+              if (liExpiry && liExpiry <= Date.now() && !hasLiRefresh) {
+                throw new Error(
+                  "LinkedIn token expire ho gaya (60 din) — Connected Accounts pe dobara connect karo",
+                )
+              }
+              // Expiry ke 24 ghante andar ho to pehle refresh karo
+              if (liExpiry && liExpiry - Date.now() < 24 * 3600 * 1000 && hasLiRefresh) {
+                console.log(`🔄 Cron: LinkedIn token refresh (${user.email})`)
+                const refreshed = await refreshLinkedInToken(
+                  decryptSecret(lp.refreshToken),
+                )
+                liToken = refreshed.accessToken
+                lp.accessToken = encryptSecret(liToken)
+                if (refreshed.refreshToken) {
+                  lp.refreshToken = encryptSecret(refreshed.refreshToken)
+                }
+                lp.expiresAt = new Date(
+                  Date.now() + (refreshed.expiresIn || 60 * 24 * 3600) * 1000,
+                )
+                await user.save()
+              }
+
+              const r = await publishToLinkedIn({
+                text,
+                imageUrl: image,
+                creds: { memberUrn: lp.memberUrn, accessToken: liToken },
               })
               result.success = true
               result.url = r.url
