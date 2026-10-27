@@ -10,20 +10,20 @@ import {
   ShieldCheck,
   Zap,
 } from "lucide-react"
-import { FaXTwitter } from "react-icons/fa6"
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaThreads, FaXTwitter } from "react-icons/fa6"
 import {
   apiConnectTelegram,
   apiConnectX,
   apiDisconnectPlatform,
   apiGetPlatforms,
+  apiStartPlatformOAuth,
+  apiStartXOAuth,
 } from "../api"
 
-// Abhi real posting sirf X + Telegram pe hai — baaki platforms road map pe
+// Abhi real posting: X, Telegram, Facebook, Instagram, Threads, LinkedIn —
+// YouTube Shorts agla batch
 const COMING_SOON = [
-  { name: "Instagram", icon: null, note: "Meta review ke baad aayega" },
-  { name: "Facebook Pages", icon: null, note: "Meta review ke baad aayega" },
-  { name: "LinkedIn", icon: null, note: "Approval process ke baad aayega" },
-  { name: "YouTube Shorts", icon: null, note: "Coming soon" },
+  { name: "YouTube Shorts", icon: null, note: "Agla batch — video upload ke saath" },
 ]
 
 const inputClass =
@@ -75,11 +75,93 @@ function SetupGuide({ children }) {
   )
 }
 
+function OAuthCard({
+  icon,
+  iconBg,
+  label,
+  data,
+  connecting,
+  connectingLabel,
+  onConnect,
+  onDisconnect,
+  disconnecting,
+  note,
+}) {
+  const connected = Boolean(data?.connected)
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div
+          className={`flex size-12 items-center justify-center rounded-xl text-white shadow-sm ${iconBg}`}
+        >
+          {icon}
+        </div>
+        <StatusBadge connected={connected} />
+      </div>
+
+      <div className="mt-5">
+        <div className="text-base font-bold text-slate-900">{label}</div>
+        <div
+          className={`mt-1 truncate text-sm font-semibold ${
+            connected ? "text-slate-600" : "text-slate-400"
+          }`}
+        >
+          {connected ? data?.handle || label : "No account linked"}
+        </div>
+        {connected && data?.connectedAt ? (
+          <div className="mt-0.5 text-xs text-slate-400">
+            Connected on {formatConnectedAt(data.connectedAt)}
+          </div>
+        ) : null}
+      </div>
+
+      {connected ? (
+        <div className="mt-4 space-y-1 rounded-xl bg-slate-50 px-3.5 py-3 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+            <ShieldCheck className="size-3.5 text-emerald-500" />
+            Access token encrypted hai
+          </div>
+          <div>Token: {data?.masked?.token || "—"}</div>
+        </div>
+      ) : null}
+
+      {!connected ? (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <button
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
+            disabled={connecting}
+            onClick={onConnect}
+            type="button"
+          >
+            {connecting ? <Loader2 className="size-4 animate-spin" /> : null}
+            {connecting ? connectingLabel : `Connect with ${label} — 1 click`}
+          </button>
+          <p className="mt-2 text-center text-[11px] leading-4 text-slate-400">
+            {note}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <button
+            className="flex h-10 w-full items-center justify-center rounded-xl border border-rose-200 bg-white text-sm font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-50 disabled:opacity-60"
+            disabled={disconnecting}
+            onClick={onDisconnect}
+            type="button"
+          >
+            {disconnecting ? <Loader2 className="size-4 animate-spin" /> : null}
+            Disconnect
+          </button>
+        </div>
+      )}
+    </article>
+  )
+}
+
 export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }) {
   const [platforms, setPlatforms] = useState(null)
   const [loadError, setLoadError] = useState("")
 
-  // X connection form
+  // X connection form (manual keys — fallback)
   const [xOpen, setXOpen] = useState(false)
   const [xForm, setXForm] = useState({
     apiKey: "",
@@ -88,6 +170,10 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
     accessSecret: "",
   })
   const [xSaving, setXSaving] = useState(false)
+  // X 1-click OAuth
+  const [xConnecting, setXConnecting] = useState(false)
+  // Meta family 1-click OAuth (facebook | instagram | threads)
+  const [oauthConnecting, setOauthConnecting] = useState("")
 
   // Telegram connection form
   const [tgOpen, setTgOpen] = useState(false)
@@ -109,6 +195,33 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
   useEffect(() => {
     loadPlatforms()
   }, [])
+
+  // 1-click OAuth — backend se authorize URL lo aur browser ko X pe bhejo.
+  // User X pe sirf "Authorize" dabata hai, phir callback wapas site pe le aata hai.
+  const handleConnectXOAuth = async () => {
+    if (xConnecting) return
+    setXConnecting(true)
+    try {
+      const data = await apiStartXOAuth()
+      window.location.href = data.authorizeUrl
+    } catch (error) {
+      showToast(error.message, "error")
+      setXConnecting(false)
+    }
+  }
+
+  // Meta family — facebook | instagram | threads (sab 1-click OAuth)
+  const handleConnectPlatformOAuth = async (platform) => {
+    if (oauthConnecting) return
+    setOauthConnecting(platform)
+    try {
+      const data = await apiStartPlatformOAuth(platform)
+      window.location.href = data.authorizeUrl
+    } catch (error) {
+      showToast(error.message, "error")
+      setOauthConnecting("")
+    }
+  }
 
   const handleConnectX = async (event) => {
     event.preventDefault()
@@ -178,7 +291,18 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
 
   const xConnected = Boolean(platforms?.x?.connected)
   const tgConnected = Boolean(platforms?.telegram?.connected)
-  const connectedCount = [xConnected, tgConnected].filter(Boolean).length
+  const fbConnected = Boolean(platforms?.facebook?.connected)
+  const igConnected = Boolean(platforms?.instagram?.connected)
+  const thConnected = Boolean(platforms?.threads?.connected)
+  const liConnected = Boolean(platforms?.linkedin?.connected)
+  const connectedCount = [
+    xConnected,
+    tgConnected,
+    fbConnected,
+    igConnected,
+    thConnected,
+    liConnected,
+  ].filter(Boolean).length
 
   return (
     <main className="flex-1 bg-slate-50 px-4 py-7 md:px-8 md:py-10 lg:px-10">
@@ -194,8 +318,9 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
               Social Connections
             </div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              X aur Telegram connect karo — scheduled posts automatically
-              publish hongi. Secrets AES-256 encrypted store hote hain.
+              X, Facebook, Instagram, Threads, LinkedIn — sab 1-click connect
+              (bas "Authorize" dabao). Telegram ke liye bot guide neeche hai.
+              Secrets AES-256 encrypted store hote hain.
             </p>
           </div>
 
@@ -205,7 +330,7 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900">
-                {connectedCount} of 2
+                {connectedCount} of 6
               </div>
               <div className="text-xs text-slate-500">Platforms connected</div>
             </div>
@@ -272,17 +397,59 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
                 <div className="mt-4 space-y-1 rounded-xl bg-slate-50 px-3.5 py-3 text-xs text-slate-500">
                   <div className="flex items-center gap-1.5 font-semibold text-slate-600">
                     <ShieldCheck className="size-3.5 text-emerald-500" />
-                    Keys encrypted hain
+                    {platforms.x.authType === "oauth2"
+                      ? "OAuth 2.0 session — encrypted auto-renew hoti hai"
+                      : "Keys encrypted hain"}
                   </div>
-                  <div>API Key: {platforms.x.masked.apiKey || "—"}</div>
-                  <div>Access Token: {platforms.x.masked.accessToken || "—"}</div>
+                  {platforms.x.authType === "oauth2" ? (
+                    <div>
+                      Access Token: {platforms.x.masked.oauth2 || "—"}
+                    </div>
+                  ) : (
+                    <>
+                      <div>API Key: {platforms.x.masked.apiKey || "—"}</div>
+                      <div>
+                        Access Token: {platforms.x.masked.accessToken || "—"}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 
               {!xConnected ? (
                 <div className="mt-5 border-t border-slate-100 pt-4">
-                  {xOpen ? (
-                    <form className="space-y-3" onSubmit={handleConnectX}>
+                  {/* 1-click OAuth — user ko sirf X pe Authorize dabana hai */}
+                  <button
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                    disabled={xConnecting}
+                    onClick={handleConnectXOAuth}
+                    type="button"
+                  >
+                    {xConnecting ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <FaXTwitter aria-hidden="true" className="size-4" />
+                    )}
+                    {xConnecting ? "X pe le ja rahe hain…" : "Connect with X — 1 click"}
+                  </button>
+                  <p className="mt-2 text-center text-[11px] leading-4 text-slate-400">
+                    Bas X pe "Authorize" dabana hai — koi keys nahi, koi developer
+                    portal nahi
+                  </p>
+
+                  {/* Manual keys — fallback (advanced users) */}
+                  <details
+                    className="group mt-3 rounded-xl border border-slate-200"
+                    onToggle={(event) => setXOpen(event.target.open)}
+                    open={xOpen}
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-bold text-slate-600">
+                      Ya manually keys se connect karo
+                      <ChevronDown className="size-4 text-slate-400 transition group-open:rotate-180" />
+                    </summary>
+                    <div className="border-t border-slate-200 p-4">
+                      {xOpen ? (
+                        <form className="space-y-3" onSubmit={handleConnectX}>
                       <input
                         className={inputClass}
                         onChange={(event) =>
@@ -370,16 +537,10 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
                           Cancel
                         </button>
                       </div>
-                    </form>
-                  ) : (
-                    <button
-                      className="flex h-10 w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
-                      onClick={() => setXOpen(true)}
-                      type="button"
-                    >
-                      Connect X Account
-                    </button>
-                  )}
+                      </form>
+                      ) : null}
+                    </div>
+                  </details>
                 </div>
               ) : (
                 <div className="mt-5 border-t border-slate-100 pt-4">
@@ -536,6 +697,98 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
                 </div>
               )}
             </article>
+
+            {/* ============ Facebook (1-click OAuth) ============ */}
+            <OAuthCard
+              data={
+                platforms.facebook
+                  ? {
+                      ...platforms.facebook,
+                      handle: platforms.facebook.pageName,
+                      masked: { token: platforms.facebook.masked?.pageToken },
+                    }
+                  : null
+              }
+              disconnecting={disconnecting === "facebook"}
+              connecting={oauthConnecting === "facebook"}
+              connectingLabel="Facebook pe le ja rahe hain…"
+              icon={<FaFacebookF aria-hidden="true" className="size-5" />}
+              iconBg="bg-blue-600"
+              label="Facebook Page"
+              note="Aapke Facebook Pages pe publish hota hai — bas authorize dabao"
+              onConnect={() => handleConnectPlatformOAuth("facebook")}
+              onDisconnect={() => handleDisconnect("facebook", "Facebook")}
+            />
+
+            {/* ============ Instagram (1-click OAuth) ============ */}
+            <OAuthCard
+              data={
+                platforms.instagram
+                  ? {
+                      ...platforms.instagram,
+                      handle: platforms.instagram.username
+                        ? "@" + platforms.instagram.username
+                        : "",
+                      masked: { token: platforms.instagram.masked?.pageToken },
+                    }
+                  : null
+              }
+              disconnecting={disconnecting === "instagram"}
+              connecting={oauthConnecting === "instagram"}
+              connectingLabel="Instagram pe le ja rahe hain…"
+              icon={<FaInstagram aria-hidden="true" className="size-5" />}
+              iconBg="bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400"
+              label="Instagram"
+              note="Business/Creator IG chahiye jo FB Page se linked ho — image wali posts publish hongi"
+              onConnect={() => handleConnectPlatformOAuth("instagram")}
+              onDisconnect={() => handleDisconnect("instagram", "Instagram")}
+            />
+
+            {/* ============ Threads (1-click OAuth) ============ */}
+            <OAuthCard
+              data={
+                platforms.threads
+                  ? {
+                      ...platforms.threads,
+                      handle: platforms.threads.username
+                        ? "@" + platforms.threads.username
+                        : "",
+                      masked: { token: platforms.threads.masked?.accessToken },
+                    }
+                  : null
+              }
+              disconnecting={disconnecting === "threads"}
+              connecting={oauthConnecting === "threads"}
+              connectingLabel="Threads pe le ja rahe hain…"
+              icon={<FaThreads aria-hidden="true" className="size-5" />}
+              iconBg="bg-slate-950"
+              label="Threads"
+              note="Text + image dono chalti hain — bas authorize dabao"
+              onConnect={() => handleConnectPlatformOAuth("threads")}
+              onDisconnect={() => handleDisconnect("threads", "Threads")}
+            />
+
+            {/* ============ LinkedIn (1-click OAuth) ============ */}
+            <OAuthCard
+              data={
+                platforms.linkedin
+                  ? {
+                      ...platforms.linkedin,
+                      handle: platforms.linkedin.name,
+                      masked: { token: platforms.linkedin.masked?.accessToken },
+                    }
+                  : null
+              }
+              disconnecting={disconnecting === "linkedin"}
+              connecting={oauthConnecting === "linkedin"}
+              connectingLabel="LinkedIn pe le ja rahe hain…"
+              icon={<FaLinkedinIn aria-hidden="true" className="size-5" />}
+              iconBg="bg-sky-700"
+              label="LinkedIn"
+              note="Professional network pe text + image posts — 100% free"
+              onConnect={() => handleConnectPlatformOAuth("linkedin")}
+              onDisconnect={() => handleDisconnect("linkedin", "LinkedIn")}
+            />
           </section>
         ) : null}
 
