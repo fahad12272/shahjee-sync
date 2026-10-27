@@ -164,6 +164,20 @@ export async function apiGetPlatforms() {
   return data.platforms
 }
 
+// X 1-click OAuth — authorize URL backend se lo, phir browser wahan bhejo
+export async function apiStartXOAuth() {
+  const data = await apiRequest("/platforms/x/oauth/start", { method: "POST" })
+  return data
+}
+
+// Meta family 1-click OAuth — platform: "facebook" | "instagram" | "threads"
+export async function apiStartPlatformOAuth(platform) {
+  const data = await apiRequest(`/platforms/${platform}/oauth/start`, {
+    method: "POST",
+  })
+  return data
+}
+
 export async function apiConnectX({
   apiKey,
   apiSecret,
