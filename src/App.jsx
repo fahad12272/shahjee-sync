@@ -97,7 +97,7 @@ export default function App() {
         />
       )
     }
-        if (authView === "forgot") {
+    if (authView === "forgot") {
       return <ForgotPasswordPage onBack={() => setAuthView("login")} />
     }
     if (authView === "reset") {
@@ -194,11 +194,45 @@ function WorkspaceApp({ onLogout, user }) {
     document.title = `${title} — Shahjee Sync`
   }, [activePage])
 
+  // OAuth se wapas aane pe result toast (?x= ?fb= ?ig= ?threads= ?li= — connected ya failed&reason=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const labels = {
+      x: "X",
+      fb: "Facebook",
+      ig: "Instagram",
+      threads: "Threads",
+      li: "LinkedIn",
+    }
+    const key = Object.keys(labels).find((k) => params.get(k))
+    if (!key) return
+    const result = params.get(key)
+    const label = labels[key]
+    window.history.replaceState({}, "", "/")
+    if (result === "connected") {
+      showToast(
+        `${label} connected — ab scheduled posts is platform pe publish hongi! 🎉`,
+        "success",
+      )
+      addActivity(`${label} account was connected`, "account")
+    } else if (result === "failed") {
+      showToast(
+        `${label} connect fail — ${params.get("reason") || "dobara try karo"}`,
+        "error",
+      )
+    }
+    fetchPlatforms()
+  }, [])
+
   // Real connected platforms — backend keys se display names banao
   const connectedPlatforms = platforms
     ? [
         platforms.x?.connected ? "X" : null,
         platforms.telegram?.connected ? "Telegram" : null,
+        platforms.facebook?.connected ? "Facebook" : null,
+        platforms.instagram?.connected ? "Instagram" : null,
+        platforms.threads?.connected ? "Threads" : null,
+        platforms.linkedin?.connected ? "LinkedIn" : null,
       ].filter(Boolean)
     : []
 
