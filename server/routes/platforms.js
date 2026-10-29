@@ -255,7 +255,7 @@ async function startMetaOAuth(req, res, target) {
 
     res.json({
       success: true,
-      authorizeUrl: buildFacebookAuthorizeUrl({ state, platform: target }),
+authorizeUrl: buildFacebookAuthorizeUrl({ state, platform: "facebook" }),
       redirectUri: getMetaRedirectUri(target),
     })
   } catch {
@@ -304,7 +304,7 @@ router.get("/facebook/oauth/callback", async (req, res) => {
     // code → short-lived → long-lived user token → pages
     const shortToken = await exchangeFacebookCode({
       code: String(code),
-      platform: target,
+      platform: "facebook",
     })
     const userToken = await exchangeFacebookLongLived(shortToken)
     const pages = await fetchUserPages(userToken)
