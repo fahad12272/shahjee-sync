@@ -1,6 +1,7 @@
 import express from "express"
 import Post from "../models/Post.js"
 import { protect } from "../middleware/auth.js"
+import { publishPostNow } from "../services/publishNow.js"
 
 const router = express.Router()
 
@@ -28,6 +29,23 @@ router.post("/", async (req, res) => {
       publishedAt: status === "Published" ? new Date() : null,
       user: req.user._id,
     })
+
+    // "Post Now" — post ko connected platforms pe TURANT publish karo.
+    // (Pehle yahan sirf DB save hota tha — FB/IG pe kuch nahi jata tha,
+    //  real posting sirf scheduled posts ke cron mein hoti thi.)
+    if (post.status === "Published") {
+      try {
+        post.publishResults = await publishPostNow(req.user, post)
+        await post.save()
+        const okCount = (post.publishResults || []).filter((r) => r.success).length
+        console.log(
+          `⚡ Post Now: "${post.title}" (${post._id}) — platforms OK: ${okCount}/${post.platforms?.length || 0}`,
+        )
+      } catch (err) {
+        // Publish fail ho to bhi post DB mein rahe — error publishResults mein hoga
+        console.error("❌ Post Now publish error:", err.message)
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -82,7 +100,7 @@ router.put("/:id", async (req, res) => {
       "status",
       "scheduledAt",
     ]
-    
+
     updates.forEach((field) => {
       if (req.body[field] !== undefined) {
         post[field] = req.body[field]
