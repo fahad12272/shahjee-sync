@@ -335,12 +335,17 @@ router.get("/facebook/oauth/callback", async (req, res) => {
       return back("fb", "connected")
     }
 
-    // Instagram — pehla Page jiske saath IG Business/Creator account linked hai
-    // DEBUG: FB ka asli error ab chhupte nahi — error message mein dikhate hain
+    // Instagram — kisi bhi Page se linked IG Business/Creator account dhoondo
+    // DEBUG v2: har page ka kachcha report error mein — zero ambiguity
     let chosenPage = null
     let ig = null
-    let igDebug = ""
+    const pageReports = []
     for (const page of pages) {
+      const label = `"${page.name || page.id}" (ID ${page.id})`
+      if (!page.access_token) {
+        pageReports.push(`${label}: FB ne page token nahi diya`)
+        continue
+      }
       try {
         const found = await fetchInstagramAccount(page.id, page.access_token)
         if (found?.id) {
@@ -348,11 +353,9 @@ router.get("/facebook/oauth/callback", async (req, res) => {
           ig = found
           break
         }
-        if (!igDebug) {
-          igDebug = `Page "${page.name || page.id}" pe koi IG account linked nahi hai (Facebook ne confirm kiya: is Page se koi Instagram juda nahi)`
-        }
+        pageReports.push(`${label}: FB ne kaha — is page se koi IG account linked nahi`)
       } catch (err) {
-        igDebug = `Page "${page.name || page.id}" — Facebook ka asli jawab: ${err.message}`
+        pageReports.push(`${label}: FB ka asli error — ${err.message}`)
         console.error(`❌ IG lookup fail (${page.id}):`, err.message)
       }
     }
@@ -361,8 +364,7 @@ router.get("/facebook/oauth/callback", async (req, res) => {
       return back(
         "ig",
         "failed",
-        igDebug ||
-          "Instagram Business/Creator account kisi Page se linked nahi mila — pehle IG account ko FB Page se link karo",
+        `Facebook ne ${pages.length} page(s) check kiye — kisi pe bhi IG Business/Creator account nahi mila. Report: ${pageReports.join(" • ")}`,
       )
     }
     user.platforms.instagram = {
