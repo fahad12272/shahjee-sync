@@ -336,16 +336,24 @@ router.get("/facebook/oauth/callback", async (req, res) => {
     }
 
     // Instagram — pehla Page jiske saath IG Business/Creator account linked hai
+    // DEBUG: FB ka asli error ab chhupte nahi — error message mein dikhate hain
     let chosenPage = null
     let ig = null
+    let igDebug = ""
     for (const page of pages) {
-      const found = await fetchInstagramAccount(page.id, page.access_token).catch(
-        () => null,
-      )
-      if (found?.id) {
-        chosenPage = page
-        ig = found
-        break
+      try {
+        const found = await fetchInstagramAccount(page.id, page.access_token)
+        if (found?.id) {
+          chosenPage = page
+          ig = found
+          break
+        }
+        if (!igDebug) {
+          igDebug = `Page "${page.name || page.id}" pe koi IG account linked nahi hai (Facebook ne confirm kiya: is Page se koi Instagram juda nahi)`
+        }
+      } catch (err) {
+        igDebug = `Page "${page.name || page.id}" — Facebook ka asli jawab: ${err.message}`
+        console.error(`❌ IG lookup fail (${page.id}):`, err.message)
       }
     }
 
@@ -353,7 +361,8 @@ router.get("/facebook/oauth/callback", async (req, res) => {
       return back(
         "ig",
         "failed",
-        "Instagram Business/Creator account kisi Page se linked nahi mila — pehle IG account ko FB Page se link karo",
+        igDebug ||
+          "Instagram Business/Creator account kisi Page se linked nahi mila — pehle IG account ko FB Page se link karo",
       )
     }
     user.platforms.instagram = {
