@@ -33,6 +33,7 @@ import {
   fetchUserPages,
   fetchInstagramAccount,
   diagnoseUserToken,
+  probeUserPage,
   exchangeThreadsCode,
   exchangeThreadsLongLived,
   fetchThreadsProfile,
@@ -308,18 +309,41 @@ router.get("/facebook/oauth/callback", async (req, res) => {
       platform: "facebook",
     })
     const userToken = await exchangeFacebookLongLived(shortToken)
-    const pages = await fetchUserPages(userToken)
+    let pages = await fetchUserPages(userToken)
     if (pages.length === 0) {
-      // DIAGNOSTICS v3 — blind error nahi, FB ka poora record toast mein:
-      // token kiska hai, valid hai, kaunsi permissions aayi, kaunse Page
-      // granted hain. Isse agla step confirm ho jata hai.
+      // RESCUE v4 — me/accounts khali aane ka known sabab: FB ka New Pages
+      // Experience migration page ka canonical ID badal deta hai, phir list
+      // edge purane granted ID ko filter kar deta hai. Hal: har granted page
+      // ID ko DIRECT probe karo — mila to wahi page use karo, warna FB ka
+      // exact jawab error mein dikha do.
       const diag = await diagnoseUserToken(userToken)
-      console.error("❌ Zero pages — diagnostics:", JSON.stringify(diag))
-      return back(
-        target === "instagram" ? "ig" : "fb",
-        "failed",
-        `Koi Facebook Page nahi mila — FB ka record: app "${diag.appName}" • identity: ${diag.identity} • token valid: ${diag.tokenValid} • permissions: ${diag.scopes} • granted pages: ${diag.grantedPages}`,
-      )
+      const granted = diag.grantedPageIds || []
+      const rescued = []
+      const probeReports = []
+      for (const pid of granted) {
+        const probe = await probeUserPage(userToken, pid)
+        if (probe.ok) {
+          rescued.push(probe.page)
+          probeReports.push(`ID ${pid}: MIL GAYA — "${probe.page.name}"`)
+        } else {
+          probeReports.push(`ID ${pid}: FB ka jawab — ${probe.error}`)
+        }
+      }
+      if (rescued.length > 0) {
+        pages = rescued // rescue successful — aage normal flow chalega
+      } else {
+        console.error(
+          "❌ Zero pages — diagnostics:",
+          JSON.stringify(diag),
+          "| probes:",
+          probeReports.join(" | "),
+        )
+        return back(
+          target === "instagram" ? "ig" : "fb",
+          "failed",
+          `Koi Facebook Page nahi mila — FB ka record: identity: ${diag.identity} • token valid: ${diag.tokenValid} • granted pages: ${diag.grantedPages} • direct probe: ${probeReports.join(" • ") || "koi grant hi nahi mila"}`,
+        )
+      }
     }
 
     const user = await User.findById(session.userId)
