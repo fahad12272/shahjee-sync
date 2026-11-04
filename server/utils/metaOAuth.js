@@ -9,7 +9,9 @@ import crypto from "node:crypto"
 
 const GRAPH_BASE = process.env.META_GRAPH_BASE || "https://graph.facebook.com"
 const THREADS_BASE = process.env.THREADS_GRAPH_BASE || "https://graph.threads.net"
-const GRAPH_VERSION = "v21.0"
+// v23.0 — recent stable version; v21.0 se bump (New Pages Experience ID
+// migration + granular grants ke saath recent versions behtar behave karte hain)
+const GRAPH_VERSION = "v23.0"
 
 const FB_AUTHORIZE_URL = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`
 const THREADS_AUTHORIZE_URL = "https://threads.net/oauth/authorize"
@@ -97,9 +99,10 @@ export async function diagnoseUserToken(userToken) {
     const psl = (d.granular_scopes || []).find(
       (g) => g.scope === "pages_show_list",
     )
+    out.grantedPageIds = Array.isArray(psl?.target_ids) ? psl.target_ids : []
     out.grantedPages =
-      Array.isArray(psl?.target_ids) && psl.target_ids.length > 0
-        ? psl.target_ids.join(", ")
+      out.grantedPageIds.length > 0
+        ? out.grantedPageIds.join(", ")
         : "ZERO — FB ke record mein is token ko koi Page grant nahi hua"
   } catch (e) {
     out.tokenValid = `debug fail: ${e.message}`
@@ -168,6 +171,39 @@ export async function fetchInstagramAccount(pageId, pageToken) {
   const ig = data.instagram_business_account
   if (!ig?.id) return null
   return { id: ig.id, username: ig.username || "" }
+}
+
+// RESCUE probe — me/accounts khali laute to granted page ID ko DIRECT poocho.
+// New Pages Experience migration ke baad page ka canonical ID badal jata hai;
+// list edge grant-ID mismatch pe page FILTER kar deta hai, lekin direct object
+// GET legacy ID se bhi resolve ho sakta hai (current ID + page token ke saath).
+// Return: { ok, page: {id,name,access_token} } ya { ok:false, error }
+export async function probeUserPage(userToken, pageId) {
+  try {
+    const data = await graphGet(
+      `${GRAPH_BASE}/${GRAPH_VERSION}/${pageId}?` +
+        new URLSearchParams({
+          fields: "id,name,access_token",
+          access_token: userToken,
+        }).toString(),
+    )
+    if (data?.id && data?.access_token) {
+      return {
+        ok: true,
+        page: {
+          id: data.id,
+          name: data.name || "Page",
+          access_token: data.access_token,
+        },
+      }
+    }
+    return {
+      ok: false,
+      error: `FB ne jawab diya magar page token/name nahi mila (${JSON.stringify(data).slice(0, 120)})`,
+    }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
 }
 
 // ---------- Threads ----------
