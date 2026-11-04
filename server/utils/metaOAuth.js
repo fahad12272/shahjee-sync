@@ -42,6 +42,9 @@ export function createState() {
 }
 
 // ---------- Facebook (Pages + Instagram dono isi flow se) ----------
+// auth_type: "rerequest" — FB ka fast-track ("Continue with previous settings")
+// replay rok deta hai. App pehle se authorized ho to bhi permission/Pages
+// screens dobara khulti hain — stale zero-page grants dobara nahi chalenge.
 export function buildFacebookAuthorizeUrl({ state, platform }) {
   const params = new URLSearchParams({
     client_id: getMetaConfig()?.appId || "",
@@ -49,6 +52,7 @@ export function buildFacebookAuthorizeUrl({ state, platform }) {
     state,
     scope: FB_SCOPES,
     response_type: "code",
+    auth_type: "rerequest",
   })
   return `${FB_AUTHORIZE_URL}?${params.toString()}`
 }
@@ -60,6 +64,50 @@ async function graphGet(url) {
     throw new Error(data?.error?.message || `Meta Graph API error ${res.status}`)
   }
   return data
+}
+
+// DIAGNOSTICS — zero-pages case ka poora sach (koi token/secret print NAHI hota):
+//   1) /me            — token kis user ki identity ka hai
+//   2) /debug_token   — token valid? kaunsi permissions? pages_show_list mein
+//                       FB ke record mein kaunse Page IDs granted hain?
+export async function diagnoseUserToken(userToken) {
+  const out = {}
+  try {
+    const me = await graphGet(
+      `${GRAPH_BASE}/${GRAPH_VERSION}/me?` +
+        new URLSearchParams({ fields: "id,name", access_token: userToken }).toString(),
+    )
+    out.identity = `${me.name || "?"} (ID ${me.id || "?"})`
+  } catch (e) {
+    out.identity = `check fail: ${e.message}`
+  }
+  try {
+    const { appId, appSecret } = getMetaConfig() || {}
+    const dt = await graphGet(
+      `${GRAPH_BASE}/${GRAPH_VERSION}/debug_token?` +
+        new URLSearchParams({
+          input_token: userToken,
+          access_token: `${appId}|${appSecret}`,
+        }).toString(),
+    )
+    const d = dt?.data || {}
+    out.appName = d.application || "?"
+    out.tokenValid = d.is_valid ? "HAAN" : "NAHI"
+    out.scopes = (d.scopes || []).join(", ") || "koi nahi"
+    const psl = (d.granular_scopes || []).find(
+      (g) => g.scope === "pages_show_list",
+    )
+    out.grantedPages =
+      Array.isArray(psl?.target_ids) && psl.target_ids.length > 0
+        ? psl.target_ids.join(", ")
+        : "ZERO — FB ke record mein is token ko koi Page grant nahi hua"
+  } catch (e) {
+    out.tokenValid = `debug fail: ${e.message}`
+    out.appName = "?"
+    out.scopes = "?"
+    out.grantedPages = "?"
+  }
+  return out
 }
 
 // Authorization code → short-lived user token (1-2 ghante)
