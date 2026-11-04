@@ -32,6 +32,7 @@ import {
   exchangeFacebookLongLived,
   fetchUserPages,
   fetchInstagramAccount,
+  diagnoseUserToken,
   exchangeThreadsCode,
   exchangeThreadsLongLived,
   fetchThreadsProfile,
@@ -309,10 +310,15 @@ router.get("/facebook/oauth/callback", async (req, res) => {
     const userToken = await exchangeFacebookLongLived(shortToken)
     const pages = await fetchUserPages(userToken)
     if (pages.length === 0) {
+      // DIAGNOSTICS v3 — blind error nahi, FB ka poora record toast mein:
+      // token kiska hai, valid hai, kaunsi permissions aayi, kaunse Page
+      // granted hain. Isse agla step confirm ho jata hai.
+      const diag = await diagnoseUserToken(userToken)
+      console.error("❌ Zero pages — diagnostics:", JSON.stringify(diag))
       return back(
         target === "instagram" ? "ig" : "fb",
         "failed",
-        "Koi Facebook Page nahi mila — OAuth step mein apna Page select karo",
+        `Koi Facebook Page nahi mila — FB ka record: app "${diag.appName}" • identity: ${diag.identity} • token valid: ${diag.tokenValid} • permissions: ${diag.scopes} • granted pages: ${diag.grantedPages}`,
       )
     }
 
