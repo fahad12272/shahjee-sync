@@ -9,6 +9,7 @@ import {
   Clock3,
   Copy,
   ExternalLink,
+  Loader2,
   MoreHorizontal,
   Pencil,
   Search,
@@ -177,6 +178,20 @@ function PostModal({
   )
 }
 
+// Pending post jiska waqt guzar chuka ho — cron job use utha ke publish kar raha
+// hai (max ~1-2 min lag). UI is dauran "Publish ho raha hai…" dikhata hai.
+// 5 min ke baad bhi Pending rahi (cron hi na chale) to wapas simple "Pending".
+function publishStage(post, now) {
+  if (post.status !== "Pending") return "done"
+  const scheduledMs = post.scheduledAt
+    ? new Date(post.scheduledAt).getTime()
+    : new Date(`${post.date} ${post.time}`).getTime()
+  if (Number.isNaN(scheduledMs)) return "waiting"
+  return scheduledMs <= now && now - scheduledMs < 5 * 60 * 1000
+    ? "publishing"
+    : "waiting"
+}
+
 const SORT_FIELDS = ["date", "status", "title"]
 
 export function ScheduledQueue({
@@ -198,6 +213,14 @@ export function ScheduledQueue({
   const [sortField, setSortField] = useState("date")
   const [sortDir, setSortDir] = useState("desc")
   const [selected, setSelected] = useState(new Set())
+  // Har 10 second clock tick — guzra hua post "Pending" se
+  // "Publish ho raha hai…" pe khud badle (bina refresh ke)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 10000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     if (initialSearch) {
@@ -517,22 +540,29 @@ export function ScheduledQueue({
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-                            post.status === "Published"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
+                        {publishStage(post, now) === "publishing" ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                            <Loader2 className="size-3 animate-spin" />
+                            Publish ho raha hai…
+                          </span>
+                        ) : (
                           <span
-                            className={`size-1.5 rounded-full ${
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
                               post.status === "Published"
-                                ? "bg-emerald-500"
-                                : "bg-amber-500"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-amber-50 text-amber-700"
                             }`}
-                          />
-                          {post.status}
-                        </span>
+                          >
+                            <span
+                              className={`size-1.5 rounded-full ${
+                                post.status === "Published"
+                                  ? "bg-emerald-500"
+                                  : "bg-amber-500"
+                              }`}
+                            />
+                            {post.status}
+                          </span>
+                        )}
                         {post.publishResults?.length > 0 ? (
                           <div className="mt-1.5 flex flex-col items-start gap-1">
                             {post.publishResults.map((result, resultIndex) => {
