@@ -177,16 +177,37 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
   }, [])
 
   // Posts BACKEND SE load karo 🚀
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const data = await apiGetPosts()
-        setPosts(data)
-      } catch (error) {
-        showToast(error.message, "error")
-      }
+  const fetchPosts = async ({ silent = false } = {}) => {
+    try {
+      const data = await apiGetPosts()
+      setPosts(data)
+    } catch (error) {
+      // Silent refresh (polling) pe toast spam na ho — sirf pehli load pe error dikhao
+      if (!silent) showToast(error.message, "error")
     }
+  }
+
+  useEffect(() => {
     fetchPosts()
+  }, [])
+
+  // AUTO-REFRESH: cron job background mein scheduled post publish karta hai,
+  // lekin khule hue page ko iski khabar nahi hoti — isliye har 15 second
+  // chhupke se dobara fetch karo. + tab/window pe wapas aane pe turant refresh.
+  // (Pending → Published green chip ab bina manual refresh ke nazar aayegi)
+  useEffect(() => {
+    const silentRefresh = () => fetchPosts({ silent: true })
+    const interval = setInterval(silentRefresh, 15000)
+    const refreshOnVisible = () => {
+      if (document.visibilityState === "visible") silentRefresh()
+    }
+    document.addEventListener("visibilitychange", refreshOnVisible)
+    window.addEventListener("focus", refreshOnVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", refreshOnVisible)
+      window.removeEventListener("focus", refreshOnVisible)
+    }
   }, [])
 
   useEffect(() => {
