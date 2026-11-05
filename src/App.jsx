@@ -122,10 +122,10 @@ export default function App() {
     )
   }
 
-  return <WorkspaceApp key={user.email} onLogout={handleLogout} user={user} />
+return <WorkspaceApp key={user.email} onLogout={handleLogout} onUserUpdated={setUser} user={user} />
 }
 
-function WorkspaceApp({ onLogout, user }) {
+function WorkspaceApp({ onLogout, onUserUpdated, user }) {
   const [activePage, setActivePage] = useState("Create Post")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [posts, setPosts] = useState([])
@@ -526,7 +526,7 @@ function WorkspaceApp({ onLogout, user }) {
             onExportData={handleExportData}
             onImportData={handleImportData}
             onResetData={handleResetData}
-            onProfileUpdated={setUser}
+            onProfileUpdated={onUserUpdated}
             user={user}
           />
         ) : (
