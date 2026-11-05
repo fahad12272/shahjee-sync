@@ -18,6 +18,7 @@ import {
   apiChangePassword,
   apiDeleteAccount,
   apiMe,
+  apiUpdateProfile,
   removeToken,
 } from "../api"
 
