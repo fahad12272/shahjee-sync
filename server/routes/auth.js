@@ -143,12 +143,15 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetUrl = `${APP_URL}/reset?token=${resetToken}`
 
-    // TESTING MODE: SMTP setup nahi hai to link response mein wapas
-    // (frontend isko amber box mein dikha deta hai). Email bhejne ke liye
-    // SMTP_USER + SMTP_PASS env vars set karo.
+    // SECURITY: SMTP setup nahi ho to bhi reset link response mein KABHI nahi bhejte.
+    // Pehle TESTING mode mein link wapas jata tha — iska matlab koi bhi kisi ke
+    // email se forgot-password call karke reset link le sakta tha (account takeover
+    // risk). Ab link sirf server logs (Vercel > Deployments > Functions logs) mein
+    // jata hai jo sirf owner dekh sakta hai. Real email ke liye SMTP_USER +
+    // SMTP_PASS env vars Vercel mein set karo.
     if (!mailerReady()) {
-      console.log("⚠️ TESTING MODE — reset link directly return kiya:", resetUrl)
-      return res.json({ success: true, message: genericMessage, resetUrl })
+      console.log("⚠️ SMTP set nahi hai — reset link sirf server log mein:", resetUrl)
+      return res.json({ success: true, message: genericMessage })
     }
 
     const emailHtml = `
