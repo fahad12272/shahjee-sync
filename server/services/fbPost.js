@@ -57,10 +57,20 @@ export async function publishToFacebook({ text, imageUrl, creds }) {
   if (!postId) throw new Error("Facebook ne post id nahi di")
 
   // Permalink — shareable URL (optional step, fail ho to URL khaali)
+  // IMPORTANT: FB Graph permalink_url KABHI poora URL deta hai (https://www.facebook.com/...)
+  // aur kabhi sirf path (/photo?fbid=...). Pehle hum hamesha domain prefix jorr rahe the
+  // jis se full-URL case mein "www.facebook.comhttps://..." jaisa toota hua URL banta tha
+  // (browser DNS error). Ab dono shapes handle hoti hain.
   let url = ""
   try {
     const p = await graphGet(postId, { fields: "permalink_url" }, pageToken)
-    url = p.permalink_url ? `https://www.facebook.com${p.permalink_url}` : ""
+    const raw = String(p.permalink_url || "").trim()
+    if (raw.startsWith("http")) {
+      url = raw // poora URL — as-is use karo
+    } else if (raw) {
+      // path — leading slash ensure karo
+      url = `https://www.facebook.com/${raw.replace(/^\/+/, "")}`
+    }
   } catch {
     // ignore
   }
