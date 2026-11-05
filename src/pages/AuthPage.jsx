@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   Mail,
   User as UserIcon,
@@ -17,13 +18,16 @@ export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
+  // Login/signup API call ke dauran button spinner + disable — user ko feedback mile
+  const [loading, setLoading] = useState(false)
 
   const isSignup = mode === "signup"
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (loading) return // double-click se dobara call na chale
     setError(null)
-
+    setLoading(true)
     try {
       const user = isSignup
         ? await apiSignup(name, email, password)
@@ -31,6 +35,8 @@ export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
       onAuth(user)
     } catch (error) {
       setError(error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -183,11 +189,21 @@ export function AuthPage({ mode, onAuth, onBack, onSwitchMode }) {
               </label>
 
               <button
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:shadow-indigo-300"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:shadow-indigo-300 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+                disabled={loading}
                 type="submit"
               >
-                {isSignup ? "Create account" : "Log in"}
-                <ArrowRight className="size-4" />
+                {loading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    {isSignup ? "Account ban raha hai…" : "Login ho raha hai…"}
+                  </>
+                ) : (
+                  <>
+                    {isSignup ? "Create account" : "Log in"}
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
               </button>
 
               {!isSignup && (
