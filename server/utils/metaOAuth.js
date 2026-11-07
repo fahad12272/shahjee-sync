@@ -33,6 +33,20 @@ export function getMetaConfig() {
   return { appId, appSecret }
 }
 
+// FIX: Threads ka apna App ID/Secret hota hai — naye Meta dashboard mein
+// "Use cases > Access the Threads API > Settings" ke andar "Threads App ID"
+// milta hai, jo GENERAL App ID se ALAG hota hai. General ID bhejne par Threads
+// error 4476002 ("No app ID was sent") deta hai. Isliye THREADS_APP_ID/
+// THREADS_APP_SECRET env vars ko tarjeeh do; purane setups ke liye META_*
+// pe fallback — koi cheez na tootey.
+export function getThreadsConfig() {
+  const appId = process.env.THREADS_APP_ID || process.env.META_APP_ID
+  const appSecret =
+    process.env.THREADS_APP_SECRET || process.env.META_APP_SECRET
+  if (!appId || !appSecret) return null
+  return { appId, appSecret }
+}
+
 // platform: "facebook" | "instagram" | "threads"
 export function getRedirectUri(platform) {
   const base = process.env.APP_URL || "http://localhost:5000"
@@ -209,7 +223,7 @@ export async function probeUserPage(userToken, pageId) {
 // ---------- Threads ----------
 export function buildThreadsAuthorizeUrl({ state }) {
   const params = new URLSearchParams({
-    client_id: getMetaConfig()?.appId || "",
+    client_id: getThreadsConfig()?.appId || "",
     redirect_uri: getRedirectUri("threads"),
     response_type: "code",
     scope: THREADS_SCOPES,
@@ -220,7 +234,7 @@ export function buildThreadsAuthorizeUrl({ state }) {
 
 // Authorization code → short-lived Threads token (~1 ghanta)
 export async function exchangeThreadsCode({ code }) {
-  const { appId, appSecret } = getMetaConfig() || {}
+  const { appId, appSecret } = getThreadsConfig() || {}
   const res = await fetch(`${THREADS_BASE}/oauth/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -241,7 +255,7 @@ export async function exchangeThreadsCode({ code }) {
 
 // Short-lived → long-lived (~60 din)
 export async function exchangeThreadsLongLived(shortToken) {
-  const { appSecret } = getMetaConfig() || {}
+  const { appSecret } = getThreadsConfig() || {}
   const url =
     `${THREADS_BASE}/access_token?` +
     new URLSearchParams({
