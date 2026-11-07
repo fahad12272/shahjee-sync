@@ -21,6 +21,7 @@ import {
   formatDateLabel,
   formatTimeLabel,
   platformIconMap,
+  platformKeyMap,
 } from "../data"
 
 function toDateInputValue(dateStr) {
@@ -375,9 +376,12 @@ export function ScheduledQueue({
                     onChange={(event) => setPlatformFilter(event.target.value)}
                     value={platformFilter}
                   >
-                    <option>All</option>
-                    <option>Instagram</option>
-                    <option>YouTube</option>
+                    <option value="All">All</option>
+                    {Object.entries(platformKeyMap).map(([label, key]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
