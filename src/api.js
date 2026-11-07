@@ -16,6 +16,27 @@ export function removeToken() {
 // MongoDB _id ko frontend ke id mein convert karo
 const transformPost = (post) => ({ ...post, id: post._id })
 
+// ---------- Session expire (401) handler ----------
+// Token expire (7 din) ya invalid hone par backend 401 deta hai. Ye endpoints
+// 401 NORMALLY bhi dete hain (galat password waghera) — inhe auto-logout se
+// bachao. Baaki jagah 401 = session khatam: token hatao + App.jsx ko event
+// bhejo taake user seedha login page pohanch jaye (workspace ke broken pages
+// pe error toasts dekhta na rehta).
+const PUBLIC_AUTH_ENDPOINTS = [
+  "/auth/login",
+  "/auth/signup",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/password", // galat current password bhi 401 deta hai
+]
+
+function handleExpiredSession(endpoint) {
+  if (PUBLIC_AUTH_ENDPOINTS.some((ep) => endpoint.startsWith(ep))) return
+  if (!getToken()) return
+  removeToken()
+  window.dispatchEvent(new Event("shahjee-sync:session-expired"))
+}
+
 // ---------- Core request helper ----------
 async function apiRequest(endpoint, options = {}) {
   const token = getToken()
@@ -37,6 +58,7 @@ async function apiRequest(endpoint, options = {}) {
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleExpiredSession(endpoint)
     throw new Error(data?.error || "Server error — try again")
   }
   return data
@@ -131,6 +153,7 @@ export async function apiUploadMedia(file) {
   }
 
   if (!res.ok) {
+    if (res.status === 401) handleExpiredSession("/upload")
     throw new Error(data?.error || "Upload fail ho gayi — try again")
   }
   return data
