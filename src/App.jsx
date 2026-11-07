@@ -467,18 +467,30 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
             typeof item.title === "string" &&
             Array.isArray(item.platforms),
         )
-        .map((item) => ({
-          title: String(item.title),
-          caption: typeof item.caption === "string" ? item.caption : "",
-          image:
-            typeof item.image === "string"
-              ? item.image
-              : "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160",
-          platforms: item.platforms.map(String),
-          date: typeof item.date === "string" ? item.date : "No date",
-          time: typeof item.time === "string" ? item.time : "—",
-          status: item.status === "Published" ? "Published" : "Pending",
-        }))
+        .map((item) => {
+          // FIX: scheduledAt preserve karo — warna imported scheduled posts ka
+          // exact publish time kho jata hai (cron scheduledAt null ko skip karta hai)
+          const parsedSchedule =
+            typeof item.scheduledAt === "string" && item.scheduledAt
+              ? new Date(item.scheduledAt)
+              : null
+          return {
+            title: String(item.title),
+            caption: typeof item.caption === "string" ? item.caption : "",
+            image:
+              typeof item.image === "string"
+                ? item.image
+                : "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160",
+            platforms: item.platforms.map(String),
+            date: typeof item.date === "string" ? item.date : "No date",
+            time: typeof item.time === "string" ? item.time : "—",
+            status: item.status === "Published" ? "Published" : "Pending",
+            scheduledAt:
+              parsedSchedule && !Number.isNaN(parsedSchedule.getTime())
+                ? parsedSchedule.toISOString()
+                : null,
+          }
+        })
 
       if (cleaned.length === 0) throw new Error("empty")
 
