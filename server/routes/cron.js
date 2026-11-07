@@ -86,9 +86,6 @@ router.get("/publish", async (req, res) => {
     let platformAttempts = 0
 
     for (const post of duePosts) {
-      post.status = "Published"
-      post.publishedAt = now
-
       const platforms = Array.isArray(post.platforms) ? post.platforms : []
       if (platforms.length > 0) {
         const user = await getUser(post.user)
@@ -269,10 +266,20 @@ router.get("/publish", async (req, res) => {
         post.publishResults = results
       }
 
-      await post.save()
+      // FIX: pehle bina results dekhe "Published" mark hota tha — sab platforms
+      // fail hone par bhi post Published dikh rahi thi (user confusion).
+      // Ab: kam az kam 1 platform success ho to Published, warna Failed.
       const okCount = (post.publishResults || []).filter((r) => r.success).length
+      if (platforms.length === 0 || okCount > 0) {
+        post.status = "Published"
+        post.publishedAt = now
+      } else {
+        post.status = "Failed"
+      }
+
+      await post.save()
       console.log(
-        `📅 Cron: "${post.title}" published (${post._id}) — platforms OK: ${okCount}/${platforms.length}`,
+        `📅 Cron: "${post.title}" (${post._id}) — status: ${post.status}, platforms OK: ${okCount}/${platforms.length}`,
       )
     }
 
