@@ -5,12 +5,9 @@ import {
   CalendarClock,
   Camera,
   CirclePlay,
-  Eye,
-  Heart,
   Link2,
   Music2,
   PenLine,
-  Repeat2,
   Send,
   Settings,
   Users,
@@ -19,6 +16,7 @@ import {
   FaFacebookF,
   FaInstagram,
   FaLinkedinIn,
+  FaThreads,
   FaTiktok,
   FaXTwitter,
   FaYoutube,
@@ -70,62 +68,16 @@ export const platforms = [
     check: "bg-slate-800",
   },
   {
+    name: "Threads",
+    icon: FaThreads,
+    active: "border-neutral-700 bg-neutral-50 text-neutral-900",
+    check: "bg-neutral-900",
+  },
+  {
     name: "Telegram",
     icon: Send,
     active: "border-sky-400 bg-sky-50/60 text-sky-700",
     check: "bg-sky-500",
-  },
-]
-
-export const connectedAccounts = [
-  {
-    name: "Instagram",
-    handle: "@shahjee.sync",
-    status: "Connected",
-    icon: FaInstagram,
-    iconStyle:
-      "bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400 text-white",
-    accent: "group-hover:border-fuchsia-200",
-  },
-  {
-    name: "YouTube",
-    handle: "Shahjee Sync",
-    status: "Connected",
-    icon: FaYoutube,
-    iconStyle: "bg-red-600 text-white",
-    accent: "group-hover:border-red-200",
-  },
-  {
-    name: "Facebook",
-    handle: "Shahjee Sync Studio",
-    status: "Connected",
-    icon: FaFacebookF,
-    iconStyle: "bg-blue-600 text-white",
-    accent: "group-hover:border-blue-200",
-  },
-  {
-    name: "LinkedIn",
-    handle: "Shahjee Sync",
-    status: "Not Connected",
-    icon: FaLinkedinIn,
-    iconStyle: "bg-sky-700 text-white",
-    accent: "group-hover:border-sky-200",
-  },
-  {
-    name: "TikTok",
-    handle: "@shahjeesync",
-    status: "Connected",
-    icon: FaTiktok,
-    iconStyle: "bg-slate-950 text-white",
-    accent: "group-hover:border-slate-300",
-  },
-  {
-    name: "X",
-    handle: "No account linked",
-    status: "Not Connected",
-    icon: FaXTwitter,
-    iconStyle: "bg-slate-950 text-white",
-    accent: "group-hover:border-slate-300",
   },
 ]
 
@@ -187,78 +139,9 @@ export const platformIconMap = {
   linkedin: { icon: FaLinkedinIn, style: "bg-sky-700" },
   tiktok: { icon: FaTiktok, style: "bg-slate-950" },
   x: { icon: FaXTwitter, style: "bg-slate-950" },
+  threads: { icon: FaThreads, style: "bg-neutral-900" },
   telegram: { icon: Send, style: "bg-sky-500" },
 }
-
-export const analyticsStats = [
-  {
-    label: "Total Reach",
-    value: "284.6K",
-    growth: "+14.2%",
-    detail: "vs. previous 30 days",
-    icon: Eye,
-    iconStyle: "bg-indigo-50 text-indigo-600",
-  },
-  {
-    label: "Cross-Posts Sent",
-    value: "1,248",
-    growth: "+8.7%",
-    detail: "vs. previous 30 days",
-    icon: Repeat2,
-    iconStyle: "bg-sky-50 text-sky-600",
-  },
-  {
-    label: "Engagement Rate",
-    value: "7.86%",
-    growth: "+14.2%",
-    detail: "vs. previous 30 days",
-    icon: Heart,
-    iconStyle: "bg-rose-50 text-rose-600",
-  },
-]
-
-export const engagementBreakdown = [
-  {
-    name: "Instagram",
-    handle: "@shahjee.sync",
-    icon: FaInstagram,
-    iconStyle: "bg-gradient-to-br from-violet-600 via-fuchsia-500 to-amber-400",
-    reach: "96.4K",
-    likes: "12,840",
-    comments: "1,264",
-    change: "+18.4%",
-  },
-  {
-    name: "YouTube",
-    handle: "Shahjee Sync",
-    icon: FaYoutube,
-    iconStyle: "bg-red-600",
-    reach: "72.8K",
-    likes: "8,920",
-    comments: "846",
-    change: "+12.1%",
-  },
-  {
-    name: "Facebook",
-    handle: "Shahjee Sync Studio",
-    icon: FaFacebookF,
-    iconStyle: "bg-blue-600",
-    reach: "61.2K",
-    likes: "6,480",
-    comments: "592",
-    change: "+7.8%",
-  },
-]
-
-export const chartData = [
-  { label: "May 1", reach: "h-20", engagement: "h-10" },
-  { label: "May 5", reach: "h-28", engagement: "h-14" },
-  { label: "May 9", reach: "h-24", engagement: "h-12" },
-  { label: "May 13", reach: "h-36", engagement: "h-20" },
-  { label: "May 17", reach: "h-32", engagement: "h-16" },
-  { label: "May 21", reach: "h-44", engagement: "h-24" },
-  { label: "May 25", reach: "h-40", engagement: "h-20" },
-]
 
 export const platformKeyMap = {
   Instagram: "instagram",
@@ -267,16 +150,9 @@ export const platformKeyMap = {
   TikTok: "tiktok",
   LinkedIn: "linkedin",
   X: "x",
+  Threads: "threads",
   Telegram: "telegram",
 }
-
-export const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 
 export const createThumbnail = (file, maxSize = 400) =>
   new Promise((resolve, reject) => {
@@ -311,71 +187,6 @@ export const createThumbnail = (file, maxSize = 400) =>
     reader.onerror = () => reject(new Error("File read failed"))
     reader.readAsDataURL(file)
   })
-
-const postsKeyFor = (email) => `shahjee-sync-posts:${email}`
-
-export function loadPosts(email) {
-  try {
-    const raw = window.localStorage.getItem(postsKeyFor(email))
-    if (!raw) return queuedPosts
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed) || parsed.length === 0) return queuedPosts
-    return parsed.map((post) => ({ ...post, id: post.id || createId() }))
-  } catch {
-    return queuedPosts
-  }
-}
-
-export function savePosts(email, posts) {
-  try {
-    window.localStorage.setItem(postsKeyFor(email), JSON.stringify(posts))
-  } catch {
-    console.warn("Posts save nahi hui — storage full. Settings se reset karein.")
-  }
-}
-
-export function clearStoredPosts(email) {
-  try {
-    window.localStorage.removeItem(postsKeyFor(email))
-  } catch {
-    // ignore
-  }
-}
-
-export const accountToPlatform = {
-  Instagram: "Instagram",
-  YouTube: "YouTube Shorts",
-  Facebook: "Facebook",
-  TikTok: "TikTok",
-  LinkedIn: "LinkedIn",
-  X: "X",
-}
-
-const accountsKeyFor = (email) => `shahjee-sync-accounts:${email}`
-
-export function loadAccounts(email) {
-  try {
-    const raw = window.localStorage.getItem(accountsKeyFor(email))
-    if (!raw) return connectedAccounts
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return connectedAccounts
-    return connectedAccounts.map((account) => {
-      const saved = parsed.find((item) => item.name === account.name)
-      return saved ? { ...account, status: saved.status } : account
-    })
-  } catch {
-    return connectedAccounts
-  }
-}
-
-export function saveAccounts(email, accounts) {
-  try {
-    const slim = accounts.map(({ name, status }) => ({ name, status }))
-    window.localStorage.setItem(accountsKeyFor(email), JSON.stringify(slim))
-  } catch {
-    // ignore
-  }
-}
 
 const DRAFT_KEY = "shahjee-sync-draft"
 
