@@ -47,18 +47,35 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   const container = await threadsPost(`v1.0/${userId}/threads`, body, accessToken)
   if (!container.id) throw new Error("Threads container nahi bana")
 
-  // 2) Container ready hone do (TEXT instant hota hai, IMAGE thoda le sakta hai)
-  for (let i = 0; i < 10; i++) {
-    const status = await threadsGet(
-      `v1.0/${container.id}`,
-      { fields: "status_code" },
-      accessToken,
-    )
-    if (status.status_code === "FINISHED") break
-    if (status.status_code === "ERROR" || status.status_code === "EXPIRED") {
-      throw new Error(status.status || "Threads media process fail hui")
+  // 2) Container ready hone do — sirf IMAGE/VIDEO ke liye.
+  // FIX: TEXT container pe status_code field EXIST hi nahi karta — poll karne
+  // par "tried accessing nonexisting field (status_code)" error aata tha aur
+  // text posts kabhi publish nahi hoti thi. TEXT turant ready hota hai, isliye
+  // polling skip. IMAGE/VIDEO ke liye Meta ~30s average process time batata hai
+  // — pehle sirf 15s max tha, ab 60s tak wait + polling error par crash nahi.
+  if (body.media_type !== "TEXT") {
+    await sleep(2000)
+    for (let i = 0; i < 20; i++) {
+      let statusCode = ""
+      try {
+        const status = await threadsGet(
+          `v1.0/${container.id}`,
+          { fields: "status_code" },
+          accessToken,
+        )
+        statusCode = status.status_code || ""
+      } catch {
+        // Status abhi query nahi ho saka (container process ho raha hai) —
+        // crash mat karo, agle round mein dobara check hoga
+      }
+      if (statusCode === "FINISHED") break
+      if (statusCode === "ERROR" || statusCode === "EXPIRED") {
+        throw new Error(
+          "Threads media process fail hui — image/video dobara check karo",
+        )
+      }
+      await sleep(3000)
     }
-    await sleep(1500)
   }
 
   // 3) Publish
