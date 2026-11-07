@@ -63,6 +63,22 @@ export default function App() {
     checkSession()
   }, [])
 
+  // API layer jab 401 (session expire) detect karti hai to ye event bhejti hai —
+  // user ko seedha login page pe le jao, workspace ke broken pages pe mat atko
+  useEffect(() => {
+    const onSessionExpired = () => {
+      removeToken()
+      setUser(null)
+      setAuthView("login")
+    }
+    window.addEventListener("shahjee-sync:session-expired", onSessionExpired)
+    return () =>
+      window.removeEventListener(
+        "shahjee-sync:session-expired",
+        onSessionExpired,
+      )
+  }, [])
+
   const handleAuth = (authenticated) => {
     setUser(authenticated)
   }
