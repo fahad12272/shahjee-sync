@@ -86,13 +86,18 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   )
   if (!pub.id) throw new Error("Threads publish fail hui")
 
-  // 4) Permalink (optional)
+  // 4) Permalink (optional) — publish ke foran baad Threads post ko query
+  // karne par kabhi kabhi abhi data nahi milta (post process ho rahi hoti hai),
+  // isliye 3 koshish (3s gap) — mila to URL, warna post phir bhi published hai
   let url = ""
-  try {
-    const p = await threadsGet(`v1.0/${pub.id}`, { fields: "permalink" }, accessToken)
-    url = p.permalink || ""
-  } catch {
-    // ignore
+  for (let i = 0; i < 3 && !url; i++) {
+    try {
+      const p = await threadsGet(`v1.0/${pub.id}`, { fields: "permalink" }, accessToken)
+      url = p.permalink || ""
+    } catch {
+      // ignore — permalink nice-to-have hai, isse publish fail nahi karna
+    }
+    if (!url && i < 2) await sleep(3000)
   }
   return { id: pub.id, url }
 }
