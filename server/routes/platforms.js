@@ -21,6 +21,7 @@ import {
 } from "../utils/xOAuth.js"
 import {
   getMetaConfig,
+  getThreadsConfig,
   getRedirectUri as getMetaRedirectUri,
   createState as createMetaState,
   buildFacebookAuthorizeUrl,
@@ -416,12 +417,14 @@ router.get("/facebook/oauth/callback", async (req, res) => {
 // POST /api/platforms/threads/oauth/start
 router.post("/threads/oauth/start", protect, async (req, res) => {
   try {
-    const config = getMetaConfig()
+    // FIX: Threads ka apna THREADS_APP_ID/THREADS_APP_SECRET hota hai (general
+    // META_APP_ID se alag) — getThreadsConfig pehle naya, phir purana dekhta hai
+    const config = getThreadsConfig()
     if (!config) {
       return res.status(400).json({
         success: false,
         error:
-          "OAuth setup nahi hua — META_APP_ID/META_APP_SECRET env vars missing (Vercel mein add karo).",
+          "OAuth setup nahi hua — THREADS_APP_ID/THREADS_APP_SECRET (ya META_APP_ID/META_APP_SECRET) env vars missing (Vercel mein add karo).",
       })
     }
 
