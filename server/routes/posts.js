@@ -36,10 +36,15 @@ router.post("/", async (req, res) => {
     if (post.status === "Published") {
       try {
         post.publishResults = await publishPostNow(req.user, post)
-        await post.save()
+        // FIX: sab platforms fail ho to "Failed" mark karo — pehle har haal
+        // mein Published dikh rahi thi jabke publish hui hi nahi thi
         const okCount = (post.publishResults || []).filter((r) => r.success).length
+        if (okCount === 0 && (post.platforms?.length || 0) > 0) {
+          post.status = "Failed"
+        }
+        await post.save()
         console.log(
-          `⚡ Post Now: "${post.title}" (${post._id}) — platforms OK: ${okCount}/${post.platforms?.length || 0}`,
+          `⚡ Post Now: "${post.title}" (${post._id}) — status: ${post.status}, platforms OK: ${okCount}/${post.platforms?.length || 0}`,
         )
       } catch (err) {
         // Publish fail ho to bhi post DB mein rahe — error publishResults mein hoga
