@@ -2,7 +2,8 @@
 // Text-only + image dono chalti hain. 2-step: container → publish.
 // Docs: developers.facebook.com/docs/threads/create-posts
 
-const THREADS_BASE = process.env.THREADS_GRAPH_BASE || "https://graph.threads.net"
+const THREADS_BASE =
+  process.env.THREADS_GRAPH_BASE || "https://graph.threads.net"
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function thError(data, status) {
@@ -36,7 +37,9 @@ export async function publishToThreads({ text, imageUrl, creds }) {
     throw new Error("Threads connection adhoora hai — dobara connect karo")
   }
 
-  const t = String(text || "").trim().slice(0, 5000) // Threads text limit
+  const t = String(text || "")
+    .trim()
+    .slice(0, 5000) // Threads text limit
   const img = String(imageUrl || "").trim()
 
   const body = img
@@ -44,7 +47,11 @@ export async function publishToThreads({ text, imageUrl, creds }) {
     : { media_type: "TEXT", text: t }
 
   // 1) Container
-  const container = await threadsPost(`v1.0/${userId}/threads`, body, accessToken)
+  const container = await threadsPost(
+    `v1.0/${userId}/threads`,
+    body,
+    accessToken,
+  )
   if (!container.id) throw new Error("Threads container nahi bana")
 
   // 2) Container ready hone do — sirf IMAGE/VIDEO ke liye.
@@ -52,11 +59,12 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   // par "tried accessing nonexisting field (status_code)" error aata tha aur
   // text posts kabhi publish nahi hoti thi. TEXT turant ready hota hai, isliye
   // polling skip. IMAGE/VIDEO ke liye Meta ~30s average process time batata hai
-  // — max 12 rounds (~36s). NOTE: Vercel function limit (~60s) hai isliye
-  // polling + permalink retry ka total isse zyada nahi ho sakta.
+  // — max 10 rounds (~30s). NOTE: Vercel function 60s limit hai — Post Now
+  // ab FB/IG/Threads PARALLEL chalata hai, isliye Threads ka worst-case
+  // (30s polling + ~8s permalink + calls) limit ke andar rehna zaroori hai.
   if (body.media_type !== "TEXT") {
     await sleep(2000)
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 10; i++) {
       let statusCode = ""
       try {
         const status = await threadsGet(
@@ -88,9 +96,9 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   if (!pub.id) throw new Error("Threads publish fail hui")
 
   // 4) Permalink (optional) — publish ke foran baad Threads post kuch seconds
-  // tak queryable nahi hoti (permalink field missing ya error). 4 koshish
-  // (4s gap = ~16s tak). Ab har fail ki ASLI WAJAH Vercel logs mein likhte
-  // hain — pehle chupchaap fail hota tha aur pata nahi chalta tha kyun.
+  // tak queryable nahi hoti (permalink field missing ya error). 4 koshish ×
+  // 2s gap = ~8s max (pehle 16s tha — 60s limit ke andar rehne ke liye kam
+  // kiya). Har fail ki ASLI WAJAH Vercel logs mein likhti hai.
   let url = ""
   for (let i = 0; i < 4 && !url; i++) {
     try {
@@ -110,9 +118,12 @@ export async function publishToThreads({ text, imageUrl, creds }) {
         `⚠️ Threads permalink try ${i + 1}/4 fail (id: ${pub.id}): ${err.message}`,
       )
     }
-    if (!url && i < 3) await sleep(4000)
+    if (!url && i < 3) await sleep(2000)
   }
   if (url) console.log(`✅ Threads permalink mil gaya: ${url}`)
-  else console.log(`❌ Threads permalink 4 koshish ke baad bhi nahi mila (id: ${pub.id}) — post published hai, sirf URL missing`)
+  else
+    console.log(
+      `❌ Threads permalink 4 koshish ke baad bhi nahi mila (id: ${pub.id}) — post published hai, sirf URL missing`,
+    )
   return { id: pub.id, url }
 }
