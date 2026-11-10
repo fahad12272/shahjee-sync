@@ -70,7 +70,7 @@ function PostModal({
 
     const combined = new Date(`${dateValue}T${timeValue}`)
     if (Number.isNaN(combined.getTime())) return
-    // Teesra arg = exact ISO time â€” cron isi se publish karta hai
+    // Teesra arg = exact ISO time — cron isi se publish karta hai
     onSaveReschedule(
       formatDateLabel(combined),
       formatTimeLabel(combined),
@@ -182,8 +182,8 @@ function PostModal({
   )
 }
 
-// Pending post jiska waqt guzar chuka ho â€” cron job use utha ke publish kar raha
-// hai (max ~1-2 min lag). UI is dauran "Publish ho raha haiâ€¦" dikhata hai.
+// Pending post jiska waqt guzar chuka ho — cron job use utha ke publish kar raha
+// hai (max ~1-2 min lag). UI is dauran "Publish ho raha hai…" dikhata hai.
 // 5 min ke baad bhi Pending rahi (cron hi na chale) to wapas simple "Pending".
 function publishStage(post, now) {
   if (post.status !== "Pending") return "done"
@@ -207,7 +207,7 @@ const PUBLISH_PLATFORM_NAMES = {
   linkedin: "LinkedIn",
 }
 
-// Post Now background publish ka live status â€” App.jsx publishStatus bhejta hai:
+// Post Now background publish ka live status — App.jsx publishStatus bhejta hai:
 //  - stage "publishing": neeche chhoti non-blocking pill (user queue browse
 //    karta rehta hai, kuch block nahi hota)
 //  - stage "done": popup jisme HAR platform ka nateeja hai (View link / error)
@@ -222,9 +222,9 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
           <Loader2 className="size-4 shrink-0 animate-spin text-indigo-600" />
           <p className="text-sm text-slate-500">
             <span className="font-semibold text-slate-800">
-              â€œ{publishStatus.title}â€
+              “{publishStatus.title}”
             </span>{" "}
-            is publishing â€” a popup will appear when done
+            is publishing — a popup will appear when done
           </p>
         </div>
       </div>
@@ -252,16 +252,16 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">
               {isError
-                ? `â€œ${publishStatus.title}â€ could not be published`
+                ? `“${publishStatus.title}” could not be published`
                 : allFailed
-                  ? `â€œ${savedPost.title}â€ failed to publish`
-                  : `â€œ${savedPost.title}â€ published! ðŸŽ‰`}
+                  ? `“${savedPost.title}” failed to publish`
+                  : `“${savedPost.title}” published! 🎉`}
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
               {isError
                 ? publishStatus.message
                 : allFailed
-                  ? "No platform could publish â€” reasons are listed below"
+                  ? "No platform could publish — reasons are listed below"
                   : `${okCount}/${results.length} platform${results.length > 1 ? "s" : ""} published successfully`}
             </p>
           </div>
@@ -329,7 +329,7 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
 
         {!isError && results.length === 0 && (
           <p className="px-6 py-4 text-sm text-slate-500">
-            Post saved â€” platform results will appear in the list shortly.
+            Post saved — platform results will appear in the list shortly.
           </p>
         )}
 
@@ -368,8 +368,8 @@ export function ScheduledQueue({
   const [sortField, setSortField] = useState("date")
   const [sortDir, setSortDir] = useState("desc")
   const [selected, setSelected] = useState(new Set())
-  // Har 10 second clock tick â€” guzra hua post "Pending" se
-  // "Publish ho raha haiâ€¦" pe khud badle (bina refresh ke)
+  // Har 10 second clock tick — guzra hua post "Pending" se
+  // "Publish ho raha hai…" pe khud badle (bina refresh ke)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -701,7 +701,7 @@ export function ScheduledQueue({
                         {publishStage(post, now) === "publishing" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
                             <Loader2 className="size-3 animate-spin" />
-                            Publish ho raha haiâ€¦
+                            Publish ho raha hai…
                           </span>
                         ) : (
                           <span
