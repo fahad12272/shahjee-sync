@@ -207,25 +207,70 @@ const PUBLISH_PLATFORM_NAMES = {
   linkedin: "LinkedIn",
 }
 
+// Publishing pill ka LIVE timer — user ko har second nazar aata hai ke
+// kitna waqt ho gaya aur kitna wait karna baaki hai (WAIT TIME FIX)
+function useElapsedSeconds(startedAt) {
+  const [elapsed, setElapsed] = useState(() =>
+    startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0,
+  )
+
+  useEffect(() => {
+    if (!startedAt) return undefined
+    const tick = () =>
+      setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [startedAt])
+
+  return elapsed
+}
+
+function formatElapsedTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, "0")}`
+}
+
 // Post Now background publish ka live status — App.jsx publishStatus bhejta hai:
-//  - stage "publishing": neeche chhoti non-blocking pill (user queue browse
-//    karta rehta hai, kuch block nahi hota)
+//  - stage "publishing": neeche chhoti non-blocking pill (live timer + expected
+//    wait time ke saath — user queue browse karta rehta hai, kuch block nahi hota)
 //  - stage "done": popup jisme HAR platform ka nateeja hai (View link / error)
+//    + total duration (took Xs)
 //  - stage "error": popup with API error message
 function PublishResultModal({ onClosePublishStatus, publishStatus }) {
+  const isPublishing = publishStatus?.stage === "publishing"
+  const isDone = publishStatus?.stage === "done"
+  const elapsed = useElapsedSeconds(
+    isPublishing || isDone ? publishStatus.startedAt : null,
+  )
+
   if (!publishStatus) return null
 
-  if (publishStatus.stage === "publishing") {
+  if (isPublishing) {
+    // Wait-time hint time ke saath badalta hai — user ko andaza rehta hai
+    const hint =
+      elapsed < 45
+        ? "Usually takes 20–45 seconds — feel free to browse meanwhile"
+        : elapsed < 75
+          ? "Almost done — some platforms (like Threads) are a bit slower"
+          : "Still working — keep this tab open, the popup will appear on its own"
     return (
       <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 px-4">
-        <div className="flex items-center gap-3 rounded-full border border-indigo-100 bg-white px-5 py-3 shadow-xl shadow-indigo-100">
+        <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-white px-5 py-3.5 shadow-xl shadow-indigo-100">
           <Loader2 className="size-4 shrink-0 animate-spin text-indigo-600" />
-          <p className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-800">
-              “{publishStatus.title}”
-            </span>{" "}
-            is publishing — a popup will appear when done
-          </p>
+          <div>
+            <p className="text-sm text-slate-500">
+              <span className="font-semibold text-slate-800">
+                “{publishStatus.title}”
+              </span>{" "}
+              is publishing{" "}
+              <span className="ml-1 inline-block min-w-[2.5rem] font-mono text-xs font-bold text-indigo-600">
+                {formatElapsedTime(elapsed)}
+              </span>
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>
+          </div>
         </div>
       </div>
     )
@@ -237,6 +282,16 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
   const okCount = results.filter((r) => r.success).length
   const allFailed = results.length > 0 && okCount === 0
   const bad = isError || allFailed
+  // Total publish duration — user ko pata chale ke kitna waqt laga
+  const durationSeconds =
+    isDone && publishStatus.startedAt && publishStatus.finishedAt
+      ? Math.max(
+          1,
+          Math.round(
+            (publishStatus.finishedAt - publishStatus.startedAt) / 1000,
+          ),
+        )
+      : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
@@ -263,6 +318,12 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
                 : allFailed
                   ? "No platform could publish — reasons are listed below"
                   : `${okCount}/${results.length} platform${results.length > 1 ? "s" : ""} published successfully`}
+              {durationSeconds ? (
+                <span className="font-semibold text-slate-600">
+                  {" "}
+                  · took {durationSeconds}s
+                </span>
+              ) : null}
             </p>
           </div>
         </div>
