@@ -1,10 +1,7 @@
 import express from "express"
 import Post from "../models/Post.js"
 import User from "../models/User.js"
-import {
-  decryptSecret,
-  encryptSecret,
-} from "../utils/secureStore.js"
+import { decryptSecret, encryptSecret } from "../utils/secureStore.js"
 import { publishToX } from "../services/xPost.js"
 import { refreshX2Token } from "../utils/xOAuth.js"
 import { publishToTelegram } from "../services/telegramPost.js"
@@ -25,7 +22,9 @@ const DEFAULT_IMAGE =
 // expiry check karke zaroorat ho to refresh karo (naya refresh token bhi save hota hai)
 async function getFreshX2Bearer(user) {
   const xp = user.platforms.x
-  const expiresAt = xp.oauth2ExpiresAt ? new Date(xp.oauth2ExpiresAt).getTime() : 0
+  const expiresAt = xp.oauth2ExpiresAt
+    ? new Date(xp.oauth2ExpiresAt).getTime()
+    : 0
   if (expiresAt && expiresAt - Date.now() > 60 * 1000) {
     return decryptSecret(xp.oauth2AccessToken) // abhi fresh hai
   }
@@ -90,10 +89,36 @@ router.get("/publish", async (req, res) => {
       if (platforms.length > 0) {
         const user = await getUser(post.user)
         const text = post.caption || post.title || ""
-        const image = post.image && post.image !== DEFAULT_IMAGE ? post.image : ""
+        const image =
+          post.image && post.image !== DEFAULT_IMAGE ? post.image : ""
 
+        // DUPLICATE FIX: agar pichla cron run 60s timeout mein mar gaya tha aur
+        // kuch platforms pe publish ho chuki thi (publishResults mein success),
+        // to un platforms ko DOBARA publish NAHI karte — warna FB/IG pe
+        // duplicate post chali jati thi. Sirf bache hue platforms chalte hain.
+        const alreadySuccess = new Set(
+          (Array.isArray(post.publishResults) ? post.publishResults : [])
+            .filter((r) => r && r.success)
+            .map((r) => r.platform),
+        )
         const results = []
         for (const platform of platforms) {
+          if (alreadySuccess.has(platform)) {
+            // Pehle se publish ho chuka — wahi result rakho, skip karo
+            const done = (post.publishResults || []).find(
+              (r) => r.success && r.platform === platform,
+            )
+            if (done) {
+              results.push({
+                platform: done.platform,
+                success: true,
+                url: done.url || "",
+                error: "",
+                at: done.at || now,
+              })
+            }
+            continue
+          }
           const result = {
             platform,
             success: false,
@@ -104,7 +129,9 @@ router.get("/publish", async (req, res) => {
           try {
             if (platform === "x") {
               const xp = user?.platforms?.x
-              const isOAuth2 = Boolean(xp?.oauth2AccessToken && xp?.oauth2RefreshToken)
+              const isOAuth2 = Boolean(
+                xp?.oauth2AccessToken && xp?.oauth2RefreshToken,
+              )
               const hasKeys = Boolean(xp?.accessToken && xp?.apiKey)
 
               if (!isOAuth2 && !hasKeys) {
@@ -230,7 +257,11 @@ router.get("/publish", async (req, res) => {
                 )
               }
               // Expiry ke 24 ghante andar ho to pehle refresh karo
-              if (liExpiry && liExpiry - Date.now() < 24 * 3600 * 1000 && hasLiRefresh) {
+              if (
+                liExpiry &&
+                liExpiry - Date.now() < 24 * 3600 * 1000 &&
+                hasLiRefresh
+              ) {
                 console.log(`🔄 Cron: LinkedIn token refresh (${user.email})`)
                 const refreshed = await refreshLinkedInToken(
                   decryptSecret(lp.refreshToken),
@@ -269,7 +300,9 @@ router.get("/publish", async (req, res) => {
       // FIX: pehle bina results dekhe "Published" mark hota tha — sab platforms
       // fail hone par bhi post Published dikh rahi thi (user confusion).
       // Ab: kam az kam 1 platform success ho to Published, warna Failed.
-      const okCount = (post.publishResults || []).filter((r) => r.success).length
+      const okCount = (post.publishResults || []).filter(
+        (r) => r.success,
+      ).length
       if (platforms.length === 0 || okCount > 0) {
         post.status = "Published"
         post.publishedAt = now
