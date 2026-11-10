@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Zap } from "lucide-react"
 import { Sidebar } from "./components/Sidebar"
 import { Header } from "./components/Header"
@@ -29,6 +29,10 @@ import {
   ForgotPasswordPage,
   ResetPasswordPage,
 } from "./pages/PasswordPages"
+
+// Post Now publish status ka localStorage key — RELOAD FIX: page refresh
+// hone par bhi publishing pill / result popup gayab nahi hota
+const PUBLISH_STORAGE_KEY = "shahjee_publish_status"
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -155,6 +159,9 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
   // Post Now background publish status — ScheduledQueue isse result popup
   // dikhati hai. stage: "publishing" | "done" | "error"
   const [publishStatus, setPublishStatus] = useState(null)
+  // Activity feed dedupe — promise path aur polling path dono finish kar sakte
+  // hain; ek hi post ke liye "was published" entry do dafa na aaye
+  const announcedPublishes = useRef(new Set())
 
   const removeToast = (id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
@@ -234,6 +241,146 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
     document.title = `${title} — Shahjee Sync`
   }, [activePage])
 
+  // RELOAD FIX (1/3): publishStatus ka har change localStorage mein save karo —
+  // refresh ke baad bhi publishing pill aur result popup wapas milta hai
+  useEffect(() => {
+    try {
+      if (publishStatus) {
+        window.localStorage.setItem(
+          PUBLISH_STORAGE_KEY,
+          JSON.stringify(publishStatus),
+        )
+      } else {
+        window.localStorage.removeItem(PUBLISH_STORAGE_KEY)
+      }
+    } catch {
+      // localStorage unavailable — sirf refresh-recovery nahi hogi, baaki sab chalega
+    }
+  }, [publishStatus])
+
+  // RELOAD FIX (2/3): page load pe last publish status wapis lao.
+  //  - "publishing" 2 minute tak fresh ho to pill wapis + polling resume
+  //  - "done"/"error" popup 1 ghante tak dobara dikha sakte hain (jab tak
+  //    user "Got it" na dabaaye)
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PUBLISH_STORAGE_KEY)
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      if (
+        !saved ||
+        !["publishing", "done", "error"].includes(saved.stage)
+      ) {
+        window.localStorage.removeItem(PUBLISH_STORAGE_KEY)
+        return
+      }
+      const age = Date.now() - (saved.startedAt || 0)
+      if (saved.stage === "publishing") {
+        if (age <= 120000) {
+          setPublishStatus(saved)
+        } else {
+          // Bahut purana publishing record — ab wait ka matlab nahi; post list
+          // ke status chips final result dikha dete hain
+          window.localStorage.removeItem(PUBLISH_STORAGE_KEY)
+        }
+      } else if (age <= 3600000) {
+        setPublishStatus(saved)
+      } else {
+        window.localStorage.removeItem(PUBLISH_STORAGE_KEY)
+      }
+    } catch {
+      try {
+        window.localStorage.removeItem(PUBLISH_STORAGE_KEY)
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
+
+  // RELOAD FIX (3/3): agar publish ke dauran page refresh ho gaya to original
+  // request ka jawab kabhi nahi milega. Stage "publishing" ke dauran backend
+  // se post ka publishResults poll karo — mukammal hote hi result popup khud
+  // aa jayega (chahe user ne beech mein page refresh kar liya ho)
+  useEffect(() => {
+    if (publishStatus?.stage !== "publishing") return undefined
+    let cancelled = false
+    const startedAt = publishStatus.startedAt || Date.now()
+
+    const finish = (post) => {
+      if (cancelled) return
+      cancelled = true
+      setPosts((current) =>
+        current.map((p) => (p.id === post.id ? { ...p, ...post } : p)),
+      )
+      if (!announcedPublishes.current.has(post.id)) {
+        announcedPublishes.current.add(post.id)
+        addActivity(`“${post.title}” was published`, "publish")
+      }
+      setPublishStatus({
+        stage: "done",
+        savedPost: post,
+        title: post.title,
+        startedAt,
+        finishedAt: Date.now(),
+      })
+    }
+
+    const check = async () => {
+      if (cancelled) return
+      // 2 minute se zyada wait ho gaya — polling band karo, clear message do
+      if (Date.now() - startedAt > 120000) {
+        cancelled = true
+        setPublishStatus({
+          stage: "error",
+          title: publishStatus.title,
+          message:
+            "Publish result confirm nahi hua (timeout) — Scheduled Queue mein post ke status chips se final result check karein.",
+        })
+        return
+      }
+      try {
+        const data = await apiGetPosts()
+        if (cancelled) return
+        let match = null
+        if (publishStatus.postId) {
+          match =
+            data.find(
+              (p) =>
+                p.id === publishStatus.postId &&
+                Array.isArray(p.publishResults) &&
+                p.publishResults.length > 0,
+            ) || null
+        } else {
+          // postId abhi pata nahi (reload recovery) — same title ki nayi post
+          // jiske publishResults bhar chuke hain, usay adopt karo
+          match =
+            data.find(
+              (p) =>
+                p.title === publishStatus.title &&
+                Array.isArray(p.publishResults) &&
+                p.publishResults.length > 0,
+            ) || null
+        }
+        if (match) finish(match)
+      } catch {
+        // network hiccup — agli polling try karegi
+      }
+    }
+
+    const timer = setTimeout(check, 2000)
+    const interval = setInterval(check, 4000)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      clearInterval(interval)
+    }
+  }, [
+    publishStatus?.stage,
+    publishStatus?.postId,
+    publishStatus?.title,
+    publishStatus?.startedAt,
+  ])
+
   // OAuth se wapas aane pe result toast (?x= ?fb= ?ig= ?threads= ?li= — connected ya failed&reason=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -294,6 +441,8 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
   // ka wait karta tha — user Create Post page pe atka rehta tha. Ab FORAN
   // Scheduled Queue pe le jao, publish background mein chale, aur mukammal
   // hone par queue page pe khud result popup khul jaye.
+  // startedAt record karta hai taake popup user ko bata sake ke kitna time
+  // lagega (live timer) aur mukammal hone par kitna waqt laga
   const handlePublish = (post) => {
     const { id, ...postData } = post
     // Dono modes mein pehle hi queue pe le jao — koi intezaar nahi
@@ -316,18 +465,41 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
     }
 
     // Post Now — publish background mein, user queue browse karta rehta hai
-    setPublishStatus({ stage: "publishing", title: postData.title })
+    const startedAt = Date.now()
+    setPublishStatus({
+      stage: "publishing",
+      title: postData.title,
+      postId: null,
+      startedAt,
+    })
     ;(async () => {
       try {
         const savedPost = await apiCreatePost(postData)
         setPosts((current) => [savedPost, ...current])
-        setPublishStatus({ stage: "done", savedPost })
-        addActivity(`“${savedPost.title}” was published`, "publish")
+        if (!announcedPublishes.current.has(savedPost.id)) {
+          announcedPublishes.current.add(savedPost.id)
+          addActivity(`“${savedPost.title}” was published`, "publish")
+        }
+        // Agar user ne beech mein reload kar liya ho to ye state kho jati hai
+        // (localStorage publishing record hi bachata hai) — isliye sirf tab
+        // update karo jab publishing stage abhi bhi chal raha ho
+        setPublishStatus((current) =>
+          current && current.stage === "publishing"
+            ? {
+                stage: "done",
+                savedPost,
+                title: savedPost.title,
+                startedAt,
+                finishedAt: Date.now(),
+              }
+            : current,
+        )
       } catch (error) {
         setPublishStatus({
           stage: "error",
           title: postData.title,
           message: error.message,
+          startedAt,
         })
       }
     })()
