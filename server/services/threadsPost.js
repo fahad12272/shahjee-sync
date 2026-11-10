@@ -52,10 +52,11 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   // par "tried accessing nonexisting field (status_code)" error aata tha aur
   // text posts kabhi publish nahi hoti thi. TEXT turant ready hota hai, isliye
   // polling skip. IMAGE/VIDEO ke liye Meta ~30s average process time batata hai
-  // — pehle sirf 15s max tha, ab 60s tak wait + polling error par crash nahi.
+  // — max 12 rounds (~36s). NOTE: Vercel function limit (~60s) hai isliye
+  // polling + permalink retry ka total isse zyada nahi ho sakta.
   if (body.media_type !== "TEXT") {
     await sleep(2000)
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 12; i++) {
       let statusCode = ""
       try {
         const status = await threadsGet(
@@ -86,18 +87,32 @@ export async function publishToThreads({ text, imageUrl, creds }) {
   )
   if (!pub.id) throw new Error("Threads publish fail hui")
 
-  // 4) Permalink (optional) — publish ke foran baad Threads post ko query
-  // karne par kabhi kabhi abhi data nahi milta (post process ho rahi hoti hai),
-  // isliye 3 koshish (3s gap) — mila to URL, warna post phir bhi published hai
+  // 4) Permalink (optional) — publish ke foran baad Threads post kuch seconds
+  // tak queryable nahi hoti (permalink field missing ya error). 4 koshish
+  // (4s gap = ~16s tak). Ab har fail ki ASLI WAJAH Vercel logs mein likhte
+  // hain — pehle chupchaap fail hota tha aur pata nahi chalta tha kyun.
   let url = ""
-  for (let i = 0; i < 3 && !url; i++) {
+  for (let i = 0; i < 4 && !url; i++) {
     try {
-      const p = await threadsGet(`v1.0/${pub.id}`, { fields: "permalink" }, accessToken)
+      const p = await threadsGet(
+        `v1.0/${pub.id}`,
+        { fields: "permalink" },
+        accessToken,
+      )
       url = p.permalink || ""
-    } catch {
-      // ignore — permalink nice-to-have hai, isse publish fail nahi karna
+      if (!url) {
+        console.log(
+          `⚠️ Threads permalink missing (try ${i + 1}/4, post id: ${pub.id}) — response: ${JSON.stringify(p).slice(0, 200)}`,
+        )
+      }
+    } catch (err) {
+      console.log(
+        `⚠️ Threads permalink try ${i + 1}/4 fail (id: ${pub.id}): ${err.message}`,
+      )
     }
-    if (!url && i < 2) await sleep(3000)
+    if (!url && i < 3) await sleep(4000)
   }
+  if (url) console.log(`✅ Threads permalink mil gaya: ${url}`)
+  else console.log(`❌ Threads permalink 4 koshish ke baad bhi nahi mila (id: ${pub.id}) — post published hai, sirf URL missing`)
   return { id: pub.id, url }
 }
