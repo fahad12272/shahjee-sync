@@ -6,16 +6,19 @@ import {
   CalendarClock,
   CalendarDays,
   Check,
+  CheckCircle2,
   Clock3,
   Copy,
   ExternalLink,
   Loader2,
   MoreHorizontal,
+  PartyPopper,
   Pencil,
   Search,
   Trash2,
   TriangleAlert,
   X,
+  XCircle,
 } from "lucide-react"
 import {
   formatDateLabel,
@@ -67,7 +70,7 @@ function PostModal({
 
     const combined = new Date(`${dateValue}T${timeValue}`)
     if (Number.isNaN(combined.getTime())) return
-    // Teesra arg = exact ISO time — cron isi se publish karta hai
+    // Teesra arg = exact ISO time â€” cron isi se publish karta hai
     onSaveReschedule(
       formatDateLabel(combined),
       formatTimeLabel(combined),
@@ -179,8 +182,8 @@ function PostModal({
   )
 }
 
-// Pending post jiska waqt guzar chuka ho — cron job use utha ke publish kar raha
-// hai (max ~1-2 min lag). UI is dauran "Publish ho raha hai…" dikhata hai.
+// Pending post jiska waqt guzar chuka ho â€” cron job use utha ke publish kar raha
+// hai (max ~1-2 min lag). UI is dauran "Publish ho raha haiâ€¦" dikhata hai.
 // 5 min ke baad bhi Pending rahi (cron hi na chale) to wapas simple "Pending".
 function publishStage(post, now) {
   if (post.status !== "Pending") return "done"
@@ -195,6 +198,155 @@ function publishStage(post, now) {
 
 const SORT_FIELDS = ["date", "status", "title"]
 
+const PUBLISH_PLATFORM_NAMES = {
+  x: "X",
+  telegram: "Telegram",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  threads: "Threads",
+  linkedin: "LinkedIn",
+}
+
+// Post Now background publish ka live status â€” App.jsx publishStatus bhejta hai:
+//  - stage "publishing": neeche chhoti non-blocking pill (user queue browse
+//    karta rehta hai, kuch block nahi hota)
+//  - stage "done": popup jisme HAR platform ka nateeja hai (View link / error)
+//  - stage "error": popup with API error message
+function PublishResultModal({ onClosePublishStatus, publishStatus }) {
+  if (!publishStatus) return null
+
+  if (publishStatus.stage === "publishing") {
+    return (
+      <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 px-4">
+        <div className="flex items-center gap-3 rounded-full border border-indigo-100 bg-white px-5 py-3 shadow-xl shadow-indigo-100">
+          <Loader2 className="size-4 shrink-0 animate-spin text-indigo-600" />
+          <p className="text-sm text-slate-500">
+            <span className="font-semibold text-slate-800">
+              â€œ{publishStatus.title}â€
+            </span>{" "}
+            is publishing â€” a popup will appear when done
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const isError = publishStatus.stage === "error"
+  const savedPost = isError ? null : publishStatus.savedPost
+  const results = savedPost?.publishResults || []
+  const okCount = results.filter((r) => r.success).length
+  const allFailed = results.length > 0 && okCount === 0
+  const bad = isError || allFailed
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div
+          className={`flex items-center gap-3 px-6 py-4 ${bad ? "bg-rose-50" : "bg-emerald-50"}`}
+        >
+          <div
+            className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${bad ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}
+          >
+            {bad ? <XCircle className="size-5" /> : <PartyPopper className="size-5" />}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900">
+              {isError
+                ? `â€œ${publishStatus.title}â€ could not be published`
+                : allFailed
+                  ? `â€œ${savedPost.title}â€ failed to publish`
+                  : `â€œ${savedPost.title}â€ published! ðŸŽ‰`}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {isError
+                ? publishStatus.message
+                : allFailed
+                  ? "No platform could publish â€” reasons are listed below"
+                  : `${okCount}/${results.length} platform${results.length > 1 ? "s" : ""} published successfully`}
+            </p>
+          </div>
+        </div>
+
+        {!isError && results.length > 0 && (
+          <div className="max-h-56 space-y-2 overflow-y-auto px-6 py-4">
+            {results.map((result, i) => {
+              const config = platformIconMap[result.platform]
+              const name =
+                PUBLISH_PLATFORM_NAMES[result.platform] || result.platform
+              return (
+                <div
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
+                    result.success
+                      ? "border-emerald-100 bg-emerald-50/60"
+                      : "border-rose-100 bg-rose-50/60"
+                  }`}
+                  key={`${result.platform}-${i}`}
+                >
+                  {config ? (
+                    <span
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-white ${config.style}`}
+                    >
+                      <config.icon className="size-3.5" />
+                    </span>
+                  ) : (
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-[10px] font-bold uppercase text-slate-600">
+                      {name.slice(0, 2)}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-800">{name}</p>
+                    {!result.success && result.error && (
+                      <p
+                        className="mt-0.5 truncate text-xs text-rose-600"
+                        title={result.error}
+                      >
+                        {result.error}
+                      </p>
+                    )}
+                  </div>
+                  {result.success ? (
+                    result.url ? (
+                      <a
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+                        href={result.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        View
+                        <ExternalLink className="size-3" />
+                      </a>
+                    ) : (
+                      <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                    )
+                  ) : (
+                    <XCircle className="size-4 shrink-0 text-rose-500" />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {!isError && results.length === 0 && (
+          <p className="px-6 py-4 text-sm text-slate-500">
+            Post saved â€” platform results will appear in the list shortly.
+          </p>
+        )}
+
+        <div className="flex justify-end border-t border-slate-100 px-6 py-4">
+          <button
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            onClick={onClosePublishStatus}
+            type="button"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ScheduledQueue({
   onDeletePost,
   onDuplicatePost,
@@ -204,6 +356,8 @@ export function ScheduledQueue({
   posts,
   onBulkDelete,
   initialSearch,
+  publishStatus,
+  onClosePublishStatus,
 }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All")
@@ -214,8 +368,8 @@ export function ScheduledQueue({
   const [sortField, setSortField] = useState("date")
   const [sortDir, setSortDir] = useState("desc")
   const [selected, setSelected] = useState(new Set())
-  // Har 10 second clock tick — guzra hua post "Pending" se
-  // "Publish ho raha hai…" pe khud badle (bina refresh ke)
+  // Har 10 second clock tick â€” guzra hua post "Pending" se
+  // "Publish ho raha haiâ€¦" pe khud badle (bina refresh ke)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -547,7 +701,7 @@ export function ScheduledQueue({
                         {publishStage(post, now) === "publishing" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
                             <Loader2 className="size-3 animate-spin" />
-                            Publish ho raha hai…
+                            Publish ho raha haiâ€¦
                           </span>
                         ) : (
                           <span
@@ -704,6 +858,12 @@ export function ScheduledQueue({
           post={editingPost}
         />
       )}
+
+      {/* Post Now ka live publish status (App.jsx se aata hai) */}
+      <PublishResultModal
+        onClosePublishStatus={onClosePublishStatus}
+        publishStatus={publishStatus}
+      />
     </>
   )
 }
