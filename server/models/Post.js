@@ -19,6 +19,9 @@ const postSchema = new mongoose.Schema(
       default:
         "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160",
     },
+    // Video URL (Cloudinary) — TikTok publish isi se hota hai.
+    // Upload flow: browser → Cloudinary signed direct upload → yahan URL save.
+    videoUrl: { type: String, default: "" },
     platforms: { type: [String], default: [] },
     date: { type: String, default: "" },
     time: { type: String, default: "" },
