@@ -47,6 +47,18 @@ import {
   exchangeCodeForTokens as exchangeLinkedInCode,
   fetchLinkedInProfile,
 } from "../utils/linkedinOAuth.js"
+import {
+  getTiktokConfig,
+  getTiktokRedirectUri,
+  createPkcePair as createTiktokPkcePair,
+  createState as createTiktokState,
+  buildTiktokAuthorizeUrl,
+  serializeTiktokCookie,
+  parseTiktokCookie,
+  clearedTiktokCookie,
+  exchangeTiktokCode,
+  fetchTiktokUserInfo,
+} from "../utils/tiktokOAuth.js"
 
 // Social platform connections — secrets AES-256-GCM encrypted save hote hain
 // aur API se kabhi raw return NAHI hote (sirf masked preview).
@@ -128,6 +140,14 @@ router.get("/", protect, async (req, res) => {
           connectedAt: p.linkedin?.connectedAt || null,
           expiresAt: p.linkedin?.expiresAt || null,
           masked: { accessToken: maskSecret(p.linkedin?.accessToken) },
+        },
+        tiktok: {
+          connected: Boolean(p.tiktok?.openId && p.tiktok?.accessToken),
+          displayName: p.tiktok?.displayName || "",
+          username: p.tiktok?.username || "",
+          connectedAt: p.tiktok?.connectedAt || null,
+          expiresAt: p.tiktok?.expiresAt || null,
+          masked: { accessToken: maskSecret(p.tiktok?.accessToken) },
         },
       },
     })
@@ -586,134 +606,3 @@ router.get("/linkedin/oauth/callback", async (req, res) => {
     return back("failed", err.message || "LinkedIn connection fail hui")
   }
 })
-
-// PUT /api/platforms/x — manual keys fallback { apiKey, apiSecret, accessToken, accessSecret }
-router.put("/x", protect, async (req, res) => {
-  try {
-    const { apiKey, apiSecret, accessToken, accessSecret } = req.body
-    if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Charo fields zaroori hain — API Key, API Secret, Access Token, Access Secret",
-      })
-    }
-
-    const creds = {
-      apiKey: String(apiKey).trim(),
-      apiSecret: String(apiSecret).trim(),
-      accessToken: String(accessToken).trim(),
-      accessSecret: String(accessSecret).trim(),
-    }
-
-    // Live test — galat keys ho to yahin fail hoga (save nahi hoga)
-    const profile = await verifyXCredentials(creds)
-
-    const user = await User.findById(req.user._id)
-    user.platforms = user.platforms || {}
-    user.platforms.x = {
-      authType: "keys",
-      apiKey: encryptSecret(creds.apiKey),
-      apiSecret: encryptSecret(creds.apiSecret),
-      accessToken: encryptSecret(creds.accessToken),
-      accessSecret: encryptSecret(creds.accessSecret),
-      handle: "@" + profile.username,
-      connectedAt: new Date(),
-    }
-    await user.save()
-
-    res.json({
-      success: true,
-      message: `X connected (@${profile.username}) — ab scheduled posts tweet hongi!`,
-      handle: "@" + profile.username,
-    })
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: error.message || "X connection fail hui — keys dobara check karo",
-    })
-  }
-})
-
-// PUT /api/platforms/telegram — { botToken, chatId }
-router.put("/telegram", protect, async (req, res) => {
-  try {
-    const { botToken, chatId } = req.body
-    if (!botToken || !chatId) {
-      return res.status(400).json({
-        success: false,
-        error: "Bot Token aur Chat ID dono zaroori hain",
-      })
-    }
-
-    const creds = {
-      botToken: String(botToken).trim(),
-      chatId: String(chatId).trim(),
-    }
-
-    // Live test — test message bhejta hai (bot admin na ho to yahin fail hoga)
-    const info = await verifyTelegram(creds)
-
-    const user = await User.findById(req.user._id)
-    user.platforms = user.platforms || {}
-    user.platforms.telegram = {
-      botToken: encryptSecret(creds.botToken),
-      chatId: encryptSecret(creds.chatId),
-      chatTitle: info.chatTitle,
-      connectedAt: new Date(),
-    }
-    await user.save()
-
-    res.json({
-      success: true,
-      message: `Telegram connected (${info.chatTitle}) — test message bhej diya!`,
-      chatTitle: info.chatTitle,
-    })
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error:
-        error.message ||
-        "Telegram connection fail hui — token/chat_id check karo",
-    })
-  }
-})
-
-// DELETE /api/platforms/:platform — disconnect
-const DISCONNECTABLE = ["x", "telegram", "facebook", "instagram", "threads", "linkedin"]
-
-router.delete("/:platform", protect, async (req, res) => {
-  try {
-    const { platform } = req.params
-    if (!DISCONNECTABLE.includes(platform)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Unknown platform" })
-    }
-
-    const user = await User.findById(req.user._id)
-    const p = user.platforms?.[platform]
-    const hasConnection = Boolean(
-      p?.botToken ||
-        p?.apiKey ||
-        p?.oauth2AccessToken ||
-        p?.pageToken ||
-        (p?.userId && p?.accessToken) ||
-        (p?.memberUrn && p?.accessToken),
-    )
-    if (!hasConnection) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Ye platform pehle se disconnected hai" })
-    }
-
-    user.platforms[platform] = { connectedAt: null } // defaults baaki fields bhar dete hain
-    await user.save()
-
-    res.json({ success: true, message: "Platform disconnect ho gaya" })
-  } catch {
-    res.status(500).json({ success: false, error: "Server error — try again" })
-  }
-})
-
-export default router
