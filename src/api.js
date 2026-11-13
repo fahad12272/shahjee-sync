@@ -159,6 +159,58 @@ export async function apiUploadMedia(file) {
   return data
 }
 
+// ---------- VIDEO upload (TikTok ke liye) ----------
+// Step 1: backend se signed upload params lo (api_secret server pe hi rehta hai)
+export async function apiGetVideoUploadParams() {
+  const data = await apiRequest("/upload/video-sign", { method: "POST" })
+  return data
+}
+
+// Step 2: browser video file SEEDHA Cloudinary pe bhejta hai — hamare
+// Vercel server se nahi guzarti (4.5MB body limit bypass, 60MB tak chalti hai).
+// Return: permanent Cloudinary video URL (TikTok publish isi se hota hai)
+export async function apiUploadVideoDirect(file, params, onProgress) {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("api_key", params.apiKey)
+  formData.append("timestamp", String(params.timestamp))
+  formData.append("signature", params.signature)
+  formData.append("folder", params.folder)
+
+  // XMLHttpRequest — fetch ke paas upload progress ka event nahi hota
+  const progress = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", params.uploadUrl)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    }
+    xhr.onload = () => {
+      let data = null
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        data = null
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data?.secure_url) {
+        resolve(data)
+      } else {
+        reject(
+          new Error(
+            data?.error?.message ||
+              `Video upload fail ho gayi (HTTP ${xhr.status})`,
+          ),
+        )
+      }
+    }
+    xhr.onerror = () => reject(new Error("Video upload fail ho gayi — network error"))
+    xhr.send(formData)
+  })
+
+  return { url: progress.secure_url, publicId: progress.public_id }
+}
+
 // ---------- Settings (profile / password / account) ----------
 export async function apiUpdateProfile(name) {
   const data = await apiRequest("/auth/profile", {
