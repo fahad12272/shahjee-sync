@@ -403,7 +403,7 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
     publishStatus?.startedAt,
   ])
 
-  // OAuth se wapas aane pe result toast (?x= ?fb= ?ig= ?threads= ?li= — connected ya failed&reason=...)
+  // OAuth se wapas aane pe result toast (?x= ?fb= ?ig= ?threads= ?li= ?tt= — connected ya failed&reason=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const labels = {
@@ -412,6 +412,7 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
       ig: "Instagram",
       threads: "Threads",
       li: "LinkedIn",
+      tt: "TikTok",
     }
     const key = Object.keys(labels).find((k) => params.get(k))
     if (!key) return
@@ -442,6 +443,7 @@ function WorkspaceApp({ onLogout, onUserUpdated, user }) {
         platforms.instagram?.connected ? "Instagram" : null,
         platforms.threads?.connected ? "Threads" : null,
         platforms.linkedin?.connected ? "LinkedIn" : null,
+        platforms.tiktok?.connected ? "TikTok" : null,
       ].filter(Boolean)
     : []
 
