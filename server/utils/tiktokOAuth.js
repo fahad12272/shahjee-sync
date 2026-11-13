@@ -10,8 +10,8 @@ import {
 // TIKTOK_CLIENT_SECRET env vars Vercel mein).
 // Docs:
 //   Login Kit web:   developers.tiktok.com/doc/login-kit-web
-//   Token manage:    developers.tiktok.com/doc/login-kit-manage-user-access-tokens
-//   Direct Post:     developers.tiktok.com/doc/content-posting-api-reference-direct-post
+//   Token manage:   developers.tiktok.com/doc/login-kit-manage-user-access-tokens
+//   Direct Post:    developers.tiktok.com/doc/content-posting-api-reference-direct-post
 
 const AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 const TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
@@ -48,6 +48,10 @@ export function createPkcePair() {
     .update(verifier)
     .digest("base64url")
   return { verifier, challenge }
+}
+
+export function createState() {
+  return crypto.randomBytes(16).toString("hex")
 }
 
 export function buildTiktokAuthorizeUrl({ state, codeChallenge }) {
