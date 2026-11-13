@@ -205,6 +205,7 @@ const PUBLISH_PLATFORM_NAMES = {
   instagram: "Instagram",
   threads: "Threads",
   linkedin: "LinkedIn",
+  tiktok: "TikTok",
 }
 
 // Publishing pill ka LIVE timer — user ko har second nazar aata hai ke
