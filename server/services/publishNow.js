@@ -14,6 +14,10 @@ import { publishToFacebook } from "./fbPost.js"
 import { publishToInstagram } from "./igPost.js"
 import { publishToThreads } from "./threadsPost.js"
 import { publishToLinkedIn } from "./linkedinPost.js"
+import {
+  publishToTiktok,
+  getFreshTiktokToken,
+} from "./tiktokPost.js"
 import { refreshThreadsToken } from "../utils/metaOAuth.js"
 import { refreshLinkedInToken } from "../utils/linkedinOAuth.js"
 import { refreshX2Token } from "../utils/xOAuth.js"
@@ -234,6 +238,38 @@ export async function publishPostNow(user, post) {
           })
           result.success = true
           result.url = r.url
+        } else if (platform === "tiktok") {
+          const tkp = user?.platforms?.tiktok
+          if (!tkp?.openId || !tkp?.accessToken) {
+            throw new Error(
+              "TikTok connected nahi hai — Connected Accounts page pe connect karo",
+            )
+          }
+          if (!post.videoUrl) {
+            throw new Error(
+              "TikTok ke liye video zaroori hai — Create Post pe video upload karo (sirf image TikTok pe nahi jati)",
+            )
+          }
+          // Access token ~24 ghante ka — expiry qareeb ho to refresh (chained save)
+          const tkToken = await getFreshTiktokToken(tkp, saveUser)
+          const r = await publishToTiktok({
+            videoUrl: post.videoUrl,
+            title: text,
+            username: tkp.username || "",
+            creds: {
+              accessToken: tkToken,
+              privacyLevel: process.env.TIKTOK_PRIVACY_LEVEL || "SELF_ONLY",
+            },
+          })
+          result.success = true
+          result.url = r.url
+          if (!r.url) {
+            // Video TikTok ke paas pohnch gayi, post_id abhi moderation/
+            // processing mein hai — URL baad mein TikTok app mein nazar aayegi
+            console.log(
+              `⏳ Post Now: TikTok video upload ho gayi, post_id pending (publishId: ${r.publishId})`,
+            )
+          }
         } else {
           throw new Error(`${platform} abhi supported nahi hai`)
         }
