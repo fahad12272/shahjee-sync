@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Shahjee Sync</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.7; }
+    header { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; padding: 48px 24px; text-align: center; }
+    header h1 { font-size: 28px; font-weight: 800; }
+    header p { margin-top: 8px; opacity: 0.85; font-size: 14px; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 24px 64px; }
+    h2 { font-size: 18px; font-weight: 700; margin: 32px 0 12px; color: #312e81; }
+    p, li { font-size: 15px; color: #334155; }
+    ul { padding-left: 22px; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .updated { font-size: 13px; color: #64748b; margin-top: 6px; }
+    footer { text-align: center; font-size: 13px; color: #94a3b8; padding: 24px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Privacy Policy</h1>
+    <p>Shahjee Sync — shahjee-sync.vercel.app</p>
+    <p class="updated">Last updated: November 2026</p>
+  </header>
+  <main>
+    <div class="card">
+      <h2>1. Overview</h2>
+      <p>Shahjee Sync is a social media scheduling web app. This policy explains what data we collect, how we use it and how you can delete it. We collect the minimum data needed to publish <strong>your own content to your own connected accounts</strong>.</p>
+
+      <h2>2. What Data We Collect</h2>
+      <table>
+        <tr><th>Data</th><th>Why we collect it</th></tr>
+        <tr><td>Account details (name, email, password hash)</td><td>To create and secure your Shahjee Sync login</td></tr>
+        <tr><td>TikTok basic profile (display name, avatar, username, open_id)</td><td>To show which TikTok account is connected in your dashboard</td></tr>
+        <tr><td>TikTok access &amp; refresh tokens</td><td>To publish videos to your TikTok account when you ask us to</td></tr>
+        <tr><td>Your posts (caption, image/video, schedule time)</td><td>To store and publish the content you create in the app</td></tr>
+        <tr><td>Basic profile data from other platforms you connect (Facebook, Instagram, X, etc.)</td><td>Same purpose: display the connection and publish on your request</td></tr>
+      </table>
+      <p>We do <strong>not</strong> collect TikTok video history, follower lists, direct messages, or any data about people who view your content.</p>
+
+      <h2>3. How We Use TikTok Data (Login Kit &amp; Content Posting API)</h2>
+      <ul>
+        <li><strong>user.info.basic:</strong> used only to display your connected TikTok account (name and avatar) inside your dashboard.</li>
+        <li><strong>video.upload / video.publish:</strong> used only when you explicitly choose to publish a video you uploaded yourself. The video is sent to the TikTok account that authorized the connection. We never post without your action.</li>
+        <li>Tokens are stored encrypted (AES-256-GCM) and are never shared with anyone.</li>
+        <li>You can disconnect your TikTok account at any time from Connected Accounts, which deletes the stored tokens immediately.</li>
+      </ul>
+
+      <h2>4. Third Parties We Share Data With</h2>
+      <ul>
+        <li><strong>TikTok API:</strong> your video and caption are sent to TikTok only when you publish.</li>
+        <li><strong>Cloudinary:</strong> your uploaded media is hosted there so it can be delivered to the destination platforms.</li>
+        <li><strong>Meta / X / Telegram / LinkedIn / Threads APIs:</strong> content you choose to publish is sent to those platforms.</li>
+        <li>We never sell your data. We never use your content to train models or for advertising.</li>
+      </ul>
+
+      <h2>5. Data Storage &amp; Security</h2>
+      <ul>
+        <li>Data is stored in a secured cloud database (MongoDB Atlas) with access controls.</li>
+        <li>Platform access/refresh tokens are encrypted before storage.</li>
+        <li>Passwords are stored as salted hashes and are never readable.</li>
+      </ul>
+
+      <h2>6. Data Retention &amp; Deletion</h2>
+      <ul>
+        <li>Deleting a post removes its content and media reference from our database.</li>
+        <li>Disconnecting a platform deletes that platform's tokens immediately.</li>
+        <li>Deleting your account (Settings → Delete Account) removes your account, posts and all stored platform tokens.</li>
+        <li>You can also revoke our access from your TikTok app settings (TikTok → Settings → Security and permissions → manage app authorizations).</li>
+      </ul>
+
+      <h2>7. Children's Privacy</h2>
+      <p>The Service is not directed at children under 13, and we do not knowingly collect their data.</p>
+
+      <h2>8. Changes to This Policy</h2>
+      <p>We may update this policy; the "Last updated" date will change. Material changes will be announced inside the app.</p>
+
+      <h2>9. Contact</h2>
+      <p>For privacy questions or data deletion requests, contact us through the app or at the support address shown inside the Service.</p>
+    </div>
+  </main>
+  <footer>© 2026 Shahjee Sync. All rights reserved.</footer>
+</body>
+</html>
