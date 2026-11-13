@@ -9,7 +9,7 @@ router.use(protect)
 
 router.post("/", async (req, res) => {
   try {
-    const { title, image, caption, platforms, date, time, status, scheduledAt } = req.body
+    const { title, image, videoUrl, caption, platforms, date, time, status, scheduledAt } = req.body
 
     if (!title || title.trim().length === 0) {
       return res
@@ -21,6 +21,7 @@ router.post("/", async (req, res) => {
       title: title.trim(),
       caption: typeof caption === "string" ? caption : "",
       image,
+      videoUrl: typeof videoUrl === "string" ? videoUrl : "",
       platforms,
       date,
       time,
@@ -99,6 +100,7 @@ router.put("/:id", async (req, res) => {
       "title",
       "caption",
       "image",
+      "videoUrl",
       "platforms",
       "date",
       "time",
