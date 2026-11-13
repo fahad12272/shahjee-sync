@@ -606,3 +606,241 @@ router.get("/linkedin/oauth/callback", async (req, res) => {
     return back("failed", err.message || "LinkedIn connection fail hui")
   }
 })
+
+// POST /api/platforms/tiktok/oauth/start — TikTok Login Kit PKCE flow.
+// Verifier cookie mein safe rehta hai, browser ko sirf authorize URL milta hai.
+router.post("/tiktok/oauth/start", protect, async (req, res) => {
+  try {
+    const config = getTiktokConfig()
+    if (!config) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "OAuth setup nahi hua — TIKTOK_CLIENT_KEY/TIKTOK_CLIENT_SECRET env vars missing (Vercel mein add karo).",
+      })
+    }
+
+    const { verifier, challenge } = createTiktokPkcePair()
+    const state = createTiktokState()
+    setOAuthCookie(
+      res,
+      serializeTiktokCookie({
+        userId: String(req.user._id),
+        state,
+        verifier,
+      }),
+    )
+
+    res.json({
+      success: true,
+      authorizeUrl: buildTiktokAuthorizeUrl({ state, codeChallenge: challenge }),
+      redirectUri: getTiktokRedirectUri(),
+    })
+  } catch {
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+// GET /api/platforms/tiktok/oauth/callback — TikTok yahan user wapas bhejta hai.
+// PKCE verifier + userId signed cookie se aata hai (koi JWT header nahi).
+router.get("/tiktok/oauth/callback", async (req, res) => {
+  const back = (status, reason) => {
+    const params = new URLSearchParams({ tt: status })
+    if (reason) params.set("reason", reason)
+    res.redirect(`/?${params.toString()}`)
+  }
+
+  try {
+    const { code, state, error, error_description } = req.query
+
+    if (error) {
+      return back(
+        "failed",
+        error_description || error || "TikTok ne authorize nahi kiya",
+      )
+    }
+    if (!code || !state) {
+      return back("failed", "TikTok se code nahi mila — dobara try karo")
+    }
+
+    const session = parseTiktokCookie(req.headers.cookie)
+    if (!session) {
+      return back("failed", "Session expire ho gaya — dobara connect karo")
+    }
+    if (session.state !== state) {
+      return back("failed", "Security check fail — dobara try karo")
+    }
+
+    // code → tokens (PKCE verifier ke saath) → profile
+    const tokens = await exchangeTiktokCode({
+      code: String(code),
+      codeVerifier: session.verifier,
+    })
+    const profile = await fetchTiktokUserInfo(tokens.access_token)
+
+    const user = await User.findById(session.userId)
+    if (!user) {
+      return back("failed", "Account nahi mila — login karke try karo")
+    }
+    user.platforms = user.platforms || {}
+    user.platforms.tiktok = {
+      openId: tokens.open_id || profile.openId,
+      accessToken: encryptSecret(tokens.access_token),
+      refreshToken: tokens.refresh_token
+        ? encryptSecret(tokens.refresh_token)
+        : "",
+      expiresAt: new Date(Date.now() + (tokens.expires_in || 24 * 3600) * 1000),
+      displayName: profile.displayName || "",
+      username: profile.username || "",
+      avatarUrl: profile.avatarUrl || "",
+      connectedAt: new Date(),
+    }
+    await user.save()
+
+    setOAuthCookie(res, clearedTiktokCookie())
+    return back("connected")
+  } catch (err) {
+    console.error("❌ TikTok OAuth callback error:", err.message)
+    return back("failed", err.message || "TikTok connection fail hui")
+  }
+})
+
+// PUT /api/platforms/x — manual keys fallback { apiKey, apiSecret, accessToken, accessSecret }
+router.put("/x", protect, async (req, res) => {
+  try {
+    const { apiKey, apiSecret, accessToken, accessSecret } = req.body
+    if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Charo fields zaroori hain — API Key, API Secret, Access Token, Access Secret",
+      })
+    }
+
+    const creds = {
+      apiKey: String(apiKey).trim(),
+      apiSecret: String(apiSecret).trim(),
+      accessToken: String(accessToken).trim(),
+      accessSecret: String(accessSecret).trim(),
+    }
+
+    // Live test — galat keys ho to yahin fail hoga (save nahi hoga)
+    const profile = await verifyXCredentials(creds)
+
+    const user = await User.findById(req.user._id)
+    user.platforms = user.platforms || {}
+    user.platforms.x = {
+      authType: "keys",
+      apiKey: encryptSecret(creds.apiKey),
+      apiSecret: encryptSecret(creds.apiSecret),
+      accessToken: encryptSecret(creds.accessToken),
+      accessSecret: encryptSecret(creds.accessSecret),
+      handle: "@" + profile.username,
+      connectedAt: new Date(),
+    }
+    await user.save()
+
+    res.json({
+      success: true,
+      message: `X connected (@${profile.username}) — ab scheduled posts tweet hongi!`,
+      handle: "@" + profile.username,
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message || "X connection fail hui — keys dobara check karo",
+    })
+  }
+})
+
+// PUT /api/platforms/telegram — { botToken, chatId }
+router.put("/telegram", protect, async (req, res) => {
+  try {
+    const { botToken, chatId } = req.body
+    if (!botToken || !chatId) {
+      return res.status(400).json({
+        success: false,
+        error: "Bot Token aur Chat ID dono zaroori hain",
+      })
+    }
+
+    const creds = {
+      botToken: String(botToken).trim(),
+      chatId: String(chatId).trim(),
+    }
+
+    // Live test — test message bhejta hai (bot admin na ho to yahin fail hoga)
+    const info = await verifyTelegram(creds)
+
+    const user = await User.findById(req.user._id)
+    user.platforms = user.platforms || {}
+    user.platforms.telegram = {
+      botToken: encryptSecret(creds.botToken),
+      chatId: encryptSecret(creds.chatId),
+      chatTitle: info.chatTitle,
+      connectedAt: new Date(),
+    }
+    await user.save()
+
+    res.json({
+      success: true,
+      message: `Telegram connected (${info.chatTitle}) — test message bhej diya!`,
+      chatTitle: info.chatTitle,
+    })
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error:
+        error.message ||
+        "Telegram connection fail hui — token/chat_id check karo",
+    })
+  }
+})
+
+// DELETE /api/platforms/:platform — disconnect
+const DISCONNECTABLE = [
+  "x",
+  "telegram",
+  "facebook",
+  "instagram",
+  "threads",
+  "linkedin",
+  "tiktok",
+]
+
+router.delete("/:platform", protect, async (req, res) => {
+  try {
+    const { platform } = req.params
+    if (!DISCONNECTABLE.includes(platform)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Unknown platform" })
+    }
+
+    const user = await User.findById(req.user._id)
+    const p = user.platforms?.[platform]
+    const hasConnection = Boolean(
+      p?.botToken ||
+        p?.apiKey ||
+        p?.oauth2AccessToken ||
+        p?.pageToken ||
+        (p?.userId && p?.accessToken) ||
+        (p?.memberUrn && p?.accessToken) ||
+        (p?.openId && p?.accessToken),
+    )
+    if (!hasConnection) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Ye platform pehle se disconnected hai" })
+    }
+
+    user.platforms[platform] = { connectedAt: null } // defaults baaki fields bhar dete hain
+    await user.save()
+
+    res.json({ success: true, message: "Platform disconnect ho gaya" })
+  } catch {
+    res.status(500).json({ success: false, error: "Server error — try again" })
+  }
+})
+
+export default router
