@@ -9,6 +9,10 @@ import { publishToFacebook } from "../services/fbPost.js"
 import { publishToInstagram } from "../services/igPost.js"
 import { publishToThreads } from "../services/threadsPost.js"
 import { publishToLinkedIn } from "../services/linkedinPost.js"
+import {
+  publishToTiktok,
+  getFreshTiktokToken,
+} from "../services/tiktokPost.js"
 import { refreshThreadsToken } from "../utils/metaOAuth.js"
 import { refreshLinkedInToken } from "../utils/linkedinOAuth.js"
 
@@ -284,6 +288,46 @@ router.get("/publish", async (req, res) => {
               })
               result.success = true
               result.url = r.url
+            } else if (platform === "tiktok") {
+              const tkp = user?.platforms?.tiktok
+              if (!tkp?.openId || !tkp?.accessToken) {
+                throw new Error(
+                  "TikTok connected nahi hai — Connected Accounts page pe connect karo",
+                )
+              }
+              if (!post.videoUrl) {
+                throw new Error(
+                  "TikTok ke liye video zaroori hai — post banate waqt video upload karo",
+                )
+              }
+              // Access token ~24 ghante ka — expiry qareeb ho to pehle refresh
+              const tkExpiryMs = tkp.expiresAt
+                ? new Date(tkp.expiresAt).getTime()
+                : 0
+              const tkNeedsRefresh =
+                !tkExpiryMs || tkExpiryMs - Date.now() <= 2 * 3600 * 1000
+              const tkToken = await getFreshTiktokToken(tkp)
+              if (tkNeedsRefresh) {
+                // naya token DB mein bhi save (agla cron run reuse kare)
+                await user.save()
+              }
+              const r = await publishToTiktok({
+                videoUrl: post.videoUrl,
+                title: text,
+                username: tkp.username || "",
+                creds: {
+                  accessToken: tkToken,
+                  privacyLevel:
+                    process.env.TIKTOK_PRIVACY_LEVEL || "SELF_ONLY",
+                },
+              })
+              result.success = true
+              result.url = r.url
+              if (!r.url) {
+                console.log(
+                  `⏳ Cron: TikTok video upload ho gayi, post_id pending (publishId: ${r.publishId})`,
+                )
+              }
             } else {
               throw new Error(`${platform} abhi supported nahi hai`)
             }
