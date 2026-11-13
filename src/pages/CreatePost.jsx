@@ -19,7 +19,7 @@ import {
   saveDraft,
 } from "../data"
 
-import { apiUploadMedia } from "../api"
+import { apiGetVideoUploadParams, apiUploadMedia, apiUploadVideoDirect } from "../api"
 
 export function CreatePost({
   pageTitle,
@@ -43,6 +43,9 @@ export function CreatePost({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedUrl, setUploadedUrl] = useState("")
   const [uploadError, setUploadError] = useState("")
+  const [uploadProgress, setUploadProgress] = useState(0)
+
+  const isVideoMedia = Boolean(media && media.type.startsWith("video/"))
 
   useEffect(() => {
     if (!media) {
@@ -55,9 +58,11 @@ export function CreatePost({
     return () => URL.revokeObjectURL(url)
   }, [media])
 
-  // File ko turant Cloudinary par upload karo — permanent URL milta hai
+  // File ko turant Cloudinary par upload karo — permanent URL milta hai.
+  // IMAGE: hamare server se (4MB limit). VIDEO: browser seedha Cloudinary pe
+  // signed direct upload (60MB tak — Vercel body limit bypass).
   useEffect(() => {
-    if (!media || media.type.startsWith("video/")) {
+    if (!media || isVideoMedia) {
       return
     }
 
@@ -83,7 +88,47 @@ export function CreatePost({
     return () => {
       cancelled = true
     }
-  }, [media])
+  }, [media, isVideoMedia])
+
+  // VIDEO upload — signed params backend se, bytes seedha Cloudinary ko
+  useEffect(() => {
+    if (!media || !isVideoMedia) {
+      return
+    }
+
+    let cancelled = false
+    setIsUploading(true)
+    setUploadProgress(0)
+    setUploadedUrl("")
+    setUploadError("")
+
+    ;(async () => {
+      try {
+        const params = await apiGetVideoUploadParams()
+        if (cancelled) return
+        if (media.size > params.maxBytes) {
+          throw new Error(
+            `Video ${Math.round(media.size / (1024 * 1024))}MB hai — 60MB se chhoti video rakho (MP4/MOV)`,
+          )
+        }
+        const data = await apiUploadVideoDirect(media, params, (pct) => {
+          if (!cancelled) setUploadProgress(pct)
+        })
+        if (!cancelled) setUploadedUrl(data.url)
+      } catch (error) {
+        if (!cancelled) {
+          setUploadError(error.message)
+          console.error("Video upload failed:", error.message)
+        }
+      } finally {
+        if (!cancelled) setIsUploading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [media, isVideoMedia])
   useEffect(() => {
     if (schedulePreset) {
       setPublishMode("schedule")
@@ -127,6 +172,17 @@ export function CreatePost({
     publishMode === "schedule" &&
     (!scheduleAt || new Date(scheduleAt).getTime() < Date.now() - 60_000)
 
+  // Cloudinary video URL ka poster frame (public .jpg) — queue preview aur
+  // doosri platforms (IG/FB image) isi se chalti hain. TikTok khud video use karta hai.
+  const videoPosterUrl = (url) => {
+    if (!url || !url.includes("/video/upload/")) return ""
+    return url.replace(/\.[a-zA-Z0-9]+(?=$|\?)/, ".jpg")
+  }
+
+  // TikTok video ke bina publish nahi hota — button disable + hint
+  const tiktokNeedsVideo =
+    selectedPlatforms.includes("TikTok") && !(isVideoMedia && uploadedUrl)
+
   const handlePublish = async () => {
     const targets = selectedPlatforms.filter((name) =>
       connectedPlatforms.includes(name),
@@ -140,11 +196,14 @@ export function CreatePost({
     const fallbackImage =
       "https://images.unsplash.com/photo-1615494487949-f5f68968330e?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=80&w=160&h=160"
 
-      const image = uploadedUrl
-      ? uploadedUrl
-      : media && !media.type.startsWith("video/")
-        ? await createThumbnail(media)
-        : fallbackImage
+      const poster = isVideoMedia ? videoPosterUrl(uploadedUrl) : ""
+      const image = poster
+        ? poster
+        : uploadedUrl && !isVideoMedia
+          ? uploadedUrl
+          : media && !isVideoMedia
+            ? await createThumbnail(media)
+            : fallbackImage
 
     onPublish({
       id: createId(),
@@ -154,6 +213,8 @@ export function CreatePost({
       // Poori caption DB mein save hoti hai — title sirf card display ke liye
       caption,
       image,
+      // Video (Cloudinary URL) — TikTok publish isi se hota hai
+      videoUrl: isVideoMedia ? uploadedUrl : "",
       platforms: targets.map((name) => platformKeyMap[name] ?? "instagram"),
       date: scheduledFor.toLocaleDateString("en-US", {
         month: "short",
@@ -269,12 +330,14 @@ export function CreatePost({
                   </label>
                                    <span className="text-xs text-slate-400">
                     {isUploading
-                      ? "Uploading… ⏳"
+                      ? isVideoMedia
+                        ? `Video uploading… ${uploadProgress}%`
+                        : "Uploading… ⏳"
                       : uploadError
                         ? "Upload failed — dobara choose karo"
                         : uploadedUrl
                           ? "Uploaded ✓"
-                          : "JPG, PNG, WebP up to 4MB"}
+                          : "JPG/PNG/WebP 4MB • MP4/MOV video 60MB (TikTok)"}
                   </span>
                 </div>
                 <label
@@ -400,6 +463,13 @@ export function CreatePost({
                     time.
                   </p>
                 )}
+
+                {tiktokNeedsVideo && !scheduledInPast && (
+                  <p className="w-full text-xs font-semibold text-rose-600">
+                    TikTok ke liye video zaroori hai — MP4/MOV video upload
+                    karo (60MB tak)
+                  </p>
+                )}
               </div>
 
               <button
@@ -407,12 +477,17 @@ export function CreatePost({
                 disabled={
                   isUploading ||
                   selectedPlatforms.length === 0 ||
-                  scheduledInPast
+                  scheduledInPast ||
+                  tiktokNeedsVideo
                 }
                 onClick={handlePublish}
                 type="button"
               >
-                {isUploading ? "Uploading media…" : "Publish to Selected Accounts"}
+                {isUploading
+                  ? isVideoMedia
+                    ? `Video uploading ${uploadProgress}%…`
+                    : "Uploading media…"
+                  : "Publish to Selected Accounts"}
                 <Send className="size-4" />
               </button>
             </div>
