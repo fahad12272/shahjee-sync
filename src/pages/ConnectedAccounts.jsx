@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Zap,
 } from "lucide-react"
-import { FaFacebookF, FaInstagram, FaLinkedinIn, FaThreads, FaXTwitter } from "react-icons/fa6"
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaThreads, FaTiktok, FaXTwitter } from "react-icons/fa6"
 import {
   apiConnectTelegram,
   apiConnectX,
@@ -295,6 +295,7 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
   const igConnected = Boolean(platforms?.instagram?.connected)
   const thConnected = Boolean(platforms?.threads?.connected)
   const liConnected = Boolean(platforms?.linkedin?.connected)
+  const ttConnected = Boolean(platforms?.tiktok?.connected)
   const connectedCount = [
     xConnected,
     tgConnected,
@@ -302,6 +303,7 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
     igConnected,
     thConnected,
     liConnected,
+    ttConnected,
   ].filter(Boolean).length
 
   return (
@@ -318,9 +320,9 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
               Social Connections
             </div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              X, Facebook, Instagram, Threads, LinkedIn — sab 1-click connect
-              (bas "Authorize" dabao). Telegram ke liye bot guide neeche hai.
-              Secrets AES-256 encrypted store hote hain.
+              X, Facebook, Instagram, Threads, LinkedIn, TikTok — sab 1-click
+              connect (bas "Authorize" dabao). Telegram ke liye bot guide
+              neeche hai. Secrets AES-256 encrypted store hote hain.
             </p>
           </div>
 
@@ -330,7 +332,7 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900">
-                {connectedCount} of 6
+                {connectedCount} of 7
               </div>
               <div className="text-xs text-slate-500">Platforms connected</div>
             </div>
@@ -788,6 +790,32 @@ export function ConnectedAccounts({ showToast, addActivity, onPlatformsChanged }
               note="Professional network pe text + image posts — 100% free"
               onConnect={() => handleConnectPlatformOAuth("linkedin")}
               onDisconnect={() => handleDisconnect("linkedin", "LinkedIn")}
+            />
+
+            {/* ============ TikTok (1-click OAuth PKCE) ============ */}
+            <OAuthCard
+              data={
+                platforms.tiktok
+                  ? {
+                      ...platforms.tiktok,
+                      handle:
+                        platforms.tiktok.displayName ||
+                        (platforms.tiktok.username
+                          ? "@" + platforms.tiktok.username
+                          : ""),
+                      masked: { token: platforms.tiktok.masked?.accessToken },
+                    }
+                  : null
+              }
+              disconnecting={disconnecting === "tiktok"}
+              connecting={oauthConnecting === "tiktok"}
+              connectingLabel="TikTok pe le ja rahe hain…"
+              icon={<FaTiktok aria-hidden="true" className="size-5" />}
+              iconBg="bg-slate-950"
+              label="TikTok"
+              note="Video wali post publish hoti hai (video bina post nahi jayegi). TikTok audit tak posts PRIVATE rahengi — audit ke baad public."
+              onConnect={() => handleConnectPlatformOAuth("tiktok")}
+              onDisconnect={() => handleDisconnect("tiktok", "TikTok")}
             />
           </section>
         ) : null}
