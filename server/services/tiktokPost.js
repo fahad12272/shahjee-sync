@@ -1,18 +1,26 @@
-// tiktokPost.js — TikTok Direct Post publishing engine.
+// tiktokPost.js — TikTok Content Posting API publishing engine.
 //
-// Flow (TikTok Content Posting API — FILE_UPLOAD, single chunk):
-//   1. Video Cloudinary se download (browser pehle hi video upload kar chuka hota hai)
-//   2. /v2/post/publish/video/init/  → publish_id + upload_url (1 ghante valid)
+// DO MODES (TIKTOK_POST_MODE env var — default "draft"):
+//   "draft"  — /v2/post/publish/inbox/video/init/ (video.upload scope)
+//     Video user ke TikTok INBOX/DRAFTS mein jati hai; user TikTok app
+//     mein ek tap mein usay post kar deta hai (caption + privacy khud
+//     choose karta hai). Ye TikTok ka OFFICIAL unaudited/sandbox flow hai
+//     — naye console mein video.publish scope hota hi nahi isliye direct
+//     post unaudited apps ke liye scope_not_authorized deta hai.
+//   "direct" — /v2/post/publish/video/init/ (video.publish scope)
+//     Seedha profile pe publish. Ye tabhi on karo jab app audit pass kar
+//     le: TIKTOK_POST_MODE=direct + TIKTOK_PRIVACY_LEVEL=PUBLIC_TO_EVERYONE
+//
+// Flow (FILE_UPLOAD, single chunk):
+//   1. Video Cloudinary se download (browser pehle hi upload kar chuka hota hai)
+//   2. init endpoint → publish_id + upload_url (1 ghante valid)
 //   3. PUT video bytes → upload_url (Content-Range ke saath)
-//   4. /v2/post/publish/status/fetch/ poll → post_id mila to permalink banao
+//   4. /v2/post/publish/status/fetch/ poll → post_id (direct) ya
+//      SEND_TO_USER_INBOX (draft) mila to kamyab
 //
 // IMPORTANT (Vercel 60s limit): video cap 60MB — download + upload + short
 // status polling iske andar comfortably fit hota hai. Chunks (>64MB rule) ki
 // zaroorat nahi kyunke ek hi PUT chalta hai.
-//
-// ZAROORI NOTE (unaudited apps): Jab tak TikTok app audit pass nahi karta,
-// har post PRIVATE (SELF_ONLY) publish hoti hai — ye TikTok ka official rule
-// hai. Audit ke baad TIKTOK_PRIVACY_LEVEL=PUBLIC_TO_EVERYONE env var set karo.
 
 import { decryptSecret, encryptSecret } from "../utils/secureStore.js"
 import { refreshTiktokToken } from "../utils/tiktokOAuth.js"
@@ -24,8 +32,16 @@ const TIKTOK_API = "https://open.tiktokapis.com"
 // magar hum 60MB pe rok te hain.
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024
 
-// Init endpoint per-token rate limit: ~6 requests/min — ek post = 1 request.
-const INIT_URL = `${TIKTOK_API}/v2/post/publish/video/init/`
+// Mode switch — "draft" (default, unaudited-safe) | "direct" (audit ke baad)
+export function getTiktokPostMode() {
+  return String(process.env.TIKTOK_POST_MODE || "draft").toLowerCase() ===
+    "direct"
+    ? "direct"
+    : "draft"
+}
+
+const DIRECT_INIT_URL = `${TIKTOK_API}/v2/post/publish/video/init/`
+const INBOX_INIT_URL = `${TIKTOK_API}/v2/post/publish/inbox/video/init/`
 const STATUS_URL = `${TIKTOK_API}/v2/post/publish/status/fetch/`
 
 // Cloudinary URL extension se TikTok upload ka Content-Type nikaalo
@@ -49,10 +65,10 @@ function friendlyTiktokError(error) {
     return "TikTok privacy level support nahi karta — TIKTOK_PRIVACY_LEVEL=SELF_ONLY rakho"
   }
   if (code === "unaudited_client_can_only_post_to_private_accounts") {
-    return "TikTok audit tak account PRIVATE hona chahiye — TikTok app mein account private karo"
+    return "TikTok audit tak direct post PRIVATE hai — draft mode use karo (TIKTOK_POST_MODE=draft)"
   }
   if (code === "scope_not_authorized") {
-    return "TikTok scope grant nahi hui — developer portal mein video.publish scope add karo aur dobara connect karo"
+    return "TikTok scope grant poori nahi hui — Connected Accounts pe TikTok disconnect karke dobara connect karo"
   }
   if (code === "url_ownership_unverified") {
     return "TikTok video URL verify nahi hua — FILE_UPLOAD mode use hota hai, dobara try karo"
@@ -104,9 +120,10 @@ export async function getFreshTiktokToken(tkp, saveUser = null) {
   return refreshed.accessToken
 }
 
-// Status poll — post_id mila to wahi return, warna { postId: "", url: "" }.
-// FAILED status pe TikTok ka fail_reason ke saath error.
-async function pollTiktokStatus({ publishId, accessToken, deadlineMs }) {
+// Status poll — post_id (direct mode) mila to wahi return, ya draft mode
+// mein SEND_TO_USER_INBOX (video inbox mein pohnch gayi). FAILED status pe
+// TikTok ka fail_reason ke saath error.
+async function pollTiktokStatus({ publishId, accessToken, deadlineMs, draftMode = false }) {
   while (Date.now() < deadlineMs) {
     await new Promise((resolve) => setTimeout(resolve, 5000)) // 5s gap
 
@@ -139,6 +156,12 @@ async function pollTiktokStatus({ publishId, accessToken, deadlineMs }) {
       throw new Error(`TikTok publish fail hui — ${reason}`)
     }
 
+    // Draft mode: video inbox mein pohnch gayi = kamyab (post_id nahi hota
+    // drafts ka — user TikTok app mein khud post karega)
+    if (draftMode && data.status === "SEND_TO_USER_INBOX") {
+      return { postId: "", delivered: "inbox" }
+    }
+
     if (data.post_id) {
       return { postId: String(data.post_id) }
     }
@@ -148,11 +171,10 @@ async function pollTiktokStatus({ publishId, accessToken, deadlineMs }) {
   return { postId: "" }
 }
 
-// Main publish — return: { publishId, postId, url }
-//   url = tiktok.com/@{username}/video/{post_id} (username mile to)
-//   unaudited/private posts pe post_id jaldi milta hai; public moderation
-//   wali posts pe deadline tak nahi mila to url khaali rehti hai (publish
-//   phir bhi KAMYAB hai — video TikTok ke paas hai)
+// Main publish — return: { publishId, postId, url, mode }
+//   mode "direct": url = tiktok.com/@{username}/video/{post_id} (username mile to)
+//   mode "draft":  url khali — video TikTok INBOX/DRAFTS mein hai, user
+//                  TikTok app mein khud post karega (caption + privacy wahan)
 export async function publishToTiktok({
   videoUrl,
   title,
@@ -160,6 +182,7 @@ export async function publishToTiktok({
   creds,
 }) {
   const { accessToken, privacyLevel } = creds
+  const mode = getTiktokPostMode()
   if (!accessToken) {
     throw new Error("TikTok access token nahi mila")
   }
@@ -176,41 +199,63 @@ export async function publishToTiktok({
   const size = buffer.length
 
   // 2) Init — FILE_UPLOAD single chunk (whole file <= 60MB < 64MB chunk limit)
+  //    draft mode: inbox init sirf source_info leta hai (post_info NAHI —
+  //    caption/privacy user TikTok app mein draft post karte waqt choose karta hai)
+  //    direct mode: post_info + source_info dono
   const privacy = privacyLevel || process.env.TIKTOK_PRIVACY_LEVEL || "SELF_ONLY"
-  const initRes = await fetch(INIT_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json; charset=UTF-8",
+  const initBody =
+    mode === "direct"
+      ? {
+          post_info: {
+            title: String(title || "").slice(0, 2200),
+            privacy_level: privacy,
+            disable_duet: false,
+            disable_stitch: false,
+            disable_comment: false,
+            brand_content_toggle: false,
+            brand_organic_toggle: false,
+            is_aigc: false,
+          },
+          source_info: {
+            source: "FILE_UPLOAD",
+            video_size: size,
+            chunk_size: size,
+            total_chunk_count: 1,
+          },
+        }
+      : {
+          source_info: {
+            source: "FILE_UPLOAD",
+            video_size: size,
+            chunk_size: size,
+            total_chunk_count: 1,
+          },
+        }
+
+  const initRes = await fetch(
+    mode === "direct" ? DIRECT_INIT_URL : INBOX_INIT_URL,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+      },
+      body: JSON.stringify(initBody),
     },
-    body: JSON.stringify({
-      post_info: {
-        title: String(title || "").slice(0, 2200),
-        privacy_level: privacy,
-        disable_duet: false,
-        disable_stitch: false,
-        disable_comment: false,
-        brand_content_toggle: false,
-        brand_organic_toggle: false,
-        is_aigc: false,
-      },
-      source_info: {
-        source: "FILE_UPLOAD",
-        video_size: size,
-        chunk_size: size,
-        total_chunk_count: 1,
-      },
-    }),
-  })
+  )
   const initJson = await initRes.json().catch(() => ({}))
   if (initJson?.error?.code && initJson.error.code !== "ok") {
     throw new Error(friendlyTiktokError(initJson.error))
   }
-  const { publish_id: publishId, upload_url: uploadUrl } = initJson?.data || {}
-  if (!publishId || !uploadUrl) {
+  const { publish_id: publishId = "", upload_url: uploadUrl } =
+    initJson?.data || {}
+  if (!uploadUrl) {
     throw new Error(
-      `TikTok init jawab mein publish_id/upload_url nahi mila (HTTP ${initRes.status})`,
+      `TikTok init jawab mein upload_url nahi mila (HTTP ${initRes.status})`,
     )
+  }
+  if (mode === "direct" && !publishId) {
+    throw new Error("TikTok init jawab mein publish_id nahi mila (direct mode)")
   }
 
   // 3) Video PUT — upload_url pehle se authorized hai, koi auth header nahi
@@ -230,14 +275,29 @@ export async function publishToTiktok({
     )
   }
 
+  // 3b) Draft mode + init ne publish_id nahi diya — upload kafi hai, video
+  //     TikTok ke paas hai aur inbox/drafts mein nazar aayegi
+  if (mode === "draft" && !publishId) {
+    return { publishId: "", postId: "", url: "", mode }
+  }
+
   // 4) Status poll — total request 60s se kam rakhne ke liye hard deadline
-  // (upload + download ka time nikal ke ~20s polling)
+  //    (upload + download ka time nikal ke polling budget)
+  //    draft mode: chhota budget (inbox delivery jaldi confirm ho jati hai)
   const elapsed = Date.now() - startedAt
-  const pollBudget = Math.max(8000, 45000 - elapsed)
+  const pollBudget =
+    mode === "draft"
+      ? Math.max(8000, 20000 - elapsed)
+      : Math.max(8000, 45000 - elapsed)
   const deadline = Date.now() + pollBudget
   let postId = ""
   try {
-    const status = await pollTiktokStatus({ publishId, accessToken, deadlineMs: deadline })
+    const status = await pollTiktokStatus({
+      publishId,
+      accessToken,
+      deadlineMs: deadline,
+      draftMode: mode === "draft",
+    })
     postId = status.postId
   } catch (err) {
     // Publish fail hui to error uthao — magar agar sirf polling timeout
@@ -247,9 +307,9 @@ export async function publishToTiktok({
   }
 
   const url =
-    postId && username
+    mode === "direct" && postId && username
       ? `https://www.tiktok.com/@${username}/video/${postId}`
       : ""
 
-  return { publishId, postId, url }
+  return { publishId, postId, url, mode }
 }
