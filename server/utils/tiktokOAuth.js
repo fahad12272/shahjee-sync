@@ -142,49 +142,67 @@ export async function refreshTiktokToken(refreshToken) {
 
 // Profile — display name + @username (publish ke baad permalink isi se
 // banta hai: tiktok.com/@username/video/{post_id})
-// USERINFO FIX: pehle URL mein "?" missing tha —
-//   ".../v2/user/info/fields=..." (galat path) → TikTok 404 deta tha
-// Ab "?fields=..." sahi banta hai. Safety: agar koi field sandbox grant
-// na ho to chhote field-set ke sath retry hota hai, aur total fail pe bhi
-// connect tootega nahi (token waise bhi valid hota hai).
+// USERINFO v2 FIX: ye function AB KABHI THROW NAHI KARTA.
+//   - Pass 1: user.info.basic guaranteed fields (open_id/display_name/
+//     avatar_url) — chhote sets ke sath retry
+//   - Pass 2: username alag se try (kuch apps/scopes mein ye extra
+//     permission mangta hai — fail ho to bhi connect successful rahega,
+//     permalink sirf username mile to banta hai)
+//   - Sab fail: default profile — kyunke token exchange se open_id aur
+//     access token mil hi jate hain, connect ka maqsad pura hota hai.
 export async function fetchTiktokUserInfo(accessToken) {
-  const fieldSets = [
-    "open_id,display_name,avatar_url,username",
-    "open_id,display_name,avatar_url",
-    "open_id,display_name",
-  ]
-  for (const fields of fieldSets) {
-    const url =
-      USER_INFO_URL +
-      "?" +
-      new URLSearchParams({ fields }).toString()
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    const data = await res.json().catch(() => ({}))
-    if (res.ok && !data?.error?.code) {
-      const user = data?.data?.user || {}
-      return {
-        openId: user.open_id || "",
-        displayName: user.display_name || "",
-        avatarUrl: user.avatar_url || "",
-        username: user.username || "",
-      }
-    }
-    // Token invalid/forbidden — retry bekaar, seedha fail
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(
-        data?.error?.message || `TikTok user info error ${res.status}`,
-      )
-    }
-    // 400/404 — agla chhota field-set try karo
-  }
-  // Sab attempts fail — profile default lekin connect phir bhi successful
-  // (access token valid hai, publish flow isi pe chalta hai)
-  return {
+  const profile = {
     openId: "",
     displayName: "TikTok Account",
     avatarUrl: "",
     username: "",
   }
+
+  // Pass 1 — guaranteed basic fields, chhote se barhe (pehla safal set jeet)
+  const basicSets = [
+    "open_id,display_name,avatar_url",
+    "open_id,display_name",
+    "open_id",
+  ]
+  for (const fields of basicSets) {
+    try {
+      const url =
+        USER_INFO_URL +
+        "?" +
+        new URLSearchParams({ fields }).toString()
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && !data?.error?.code) {
+        const user = data?.data?.user || {}
+        profile.openId = user.open_id || ""
+        profile.displayName = user.display_name || profile.displayName
+        profile.avatarUrl = user.avatar_url || ""
+        break
+      }
+      // 400/401/403/404 — agla chhota set try karo
+    } catch {
+      // network error — agla set
+    }
+  }
+
+  // Pass 2 — username bonus (fail hona normal hai, masla nahi)
+  try {
+    const url =
+      USER_INFO_URL +
+      "?" +
+      new URLSearchParams({ fields: "open_id,username" }).toString()
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && !data?.error?.code) {
+      profile.username = data?.data?.user?.username || ""
+    }
+  } catch {
+    // username na mila — permalink skip hoga, koi crash nahi
+  }
+
+  return profile
 }
