@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth.js"
 import postRoutes from "./routes/posts.js"
 import uploadRoutes from "./routes/upload.js"
 import platformRoutes from "./routes/platforms.js"
+import tiktokStatusRoutes from "./routes/tiktokStatus.js"
 
 const app = express()
 
@@ -124,6 +125,7 @@ app.use("/api/posts", postRoutes)
 app.use("/api/upload", uploadRoutes)
 app.use("/api/platforms", platformRoutes)
 app.use("/api/cron", cronRoutes)
+app.use("/api/tiktok-status", tiktokStatusRoutes)
 
 // ---------- 404 + global error handler (JSON only) ----------
 app.use((req, res) => {
