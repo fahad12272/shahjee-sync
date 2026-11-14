@@ -17,14 +17,18 @@ const AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 const TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 const USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/"
 
-// user.info.basic = profile (display name / avatar / username)
-// video.publish   = Direct Post — video seedha profile pe publish hoti hai
-// video.upload    = Inbox/draft upload — future ke liye (bonus scope)
-// ZAROORI NOTE: Jab tak TikTok app audit pass nahi karta (unaudited client),
-// video.publish wali posts PRIVATE (SELF_ONLY) publish hoti hain. Ye TikTok ka
-// official rule hai — code ka masla nahi. Audit ke baad TIKTOK_PRIVACY_LEVEL
-// env var se public posting enable hoti hai.
-const TIKTOK_SCOPES = "user.info.basic,video.publish,video.upload"
+// SCOPE FIX: TikTok ke naye developer console mein "video.publish" scope
+// Add Scopes list mein exist hi nahi karta — authorize URL mein wo scope
+// bhejne par TikTok poori request reject kar deta hai ("correct the
+// following: scope" wala error). Valid scopes sirf ye hain:
+//   user.info.basic = profile (display name / avatar / username)
+//   video.upload    = Content Posting API — video upload/share scope
+// Direct Post capability console ke Content Posting API > "Direct Post"
+// toggle se milti hai, OAuth scope request se nahi.
+// NOTE: Audit se pehle posts PRIVATE (SELF_ONLY) hoti hain — TikTok ka
+// official rule. Audit ke baad TIKTOK_PRIVACY_LEVEL env var se public
+// posting enable hoti hai.
+const TIKTOK_SCOPES = "user.info.basic,video.upload"
 
 export function getTiktokConfig() {
   const clientKey = process.env.TIKTOK_CLIENT_KEY
