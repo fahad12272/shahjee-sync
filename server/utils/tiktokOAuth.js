@@ -142,26 +142,49 @@ export async function refreshTiktokToken(refreshToken) {
 
 // Profile — display name + @username (publish ke baad permalink isi se
 // banta hai: tiktok.com/@username/video/{post_id})
+// USERINFO FIX: pehle URL mein "?" missing tha —
+//   ".../v2/user/info/fields=..." (galat path) → TikTok 404 deta tha
+// Ab "?fields=..." sahi banta hai. Safety: agar koi field sandbox grant
+// na ho to chhote field-set ke sath retry hota hai, aur total fail pe bhi
+// connect tootega nahi (token waise bhi valid hota hai).
 export async function fetchTiktokUserInfo(accessToken) {
-const url =
-  USER_INFO_URL +          // "https://open.tiktokapis.com/v2/user/info/"
-  new URLSearchParams({...}).toString()   // "fields=open_id%2C..."
-      fields: "open_id,display_name,avatar_url,username",
-    }).toString()
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok || data?.error?.code) {
-    throw new Error(
-      data?.error?.message || `TikTok user info error ${res.status}`,
-    )
+  const fieldSets = [
+    "open_id,display_name,avatar_url,username",
+    "open_id,display_name,avatar_url",
+    "open_id,display_name",
+  ]
+  for (const fields of fieldSets) {
+    const url =
+      USER_INFO_URL +
+      "?" +
+      new URLSearchParams({ fields }).toString()
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && !data?.error?.code) {
+      const user = data?.data?.user || {}
+      return {
+        openId: user.open_id || "",
+        displayName: user.display_name || "",
+        avatarUrl: user.avatar_url || "",
+        username: user.username || "",
+      }
+    }
+    // Token invalid/forbidden — retry bekaar, seedha fail
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        data?.error?.message || `TikTok user info error ${res.status}`,
+      )
+    }
+    // 400/404 — agla chhota field-set try karo
   }
-  const user = data?.data?.user || {}
+  // Sab attempts fail — profile default lekin connect phir bhi successful
+  // (access token valid hai, publish flow isi pe chalta hai)
   return {
-    openId: user.open_id || "",
-    displayName: user.display_name || "",
-    avatarUrl: user.avatar_url || "",
-    username: user.username || "",
+    openId: "",
+    displayName: "TikTok Account",
+    avatarUrl: "",
+    username: "",
   }
 }
