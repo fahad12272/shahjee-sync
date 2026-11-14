@@ -3,33 +3,22 @@
 // DO MODES (TIKTOK_POST_MODE env var — default "draft"):
 //   "draft"  — /v2/post/publish/inbox/video/init/ (video.upload scope)
 //     Video user ke TikTok INBOX/DRAFTS mein jati hai; user TikTok app
-//     mein ek tap mein usay post kar deta hai (caption + privacy khud
-//     choose karta hai). Ye TikTok ka OFFICIAL unaudited/sandbox flow hai
-//     — naye console mein video.publish scope hota hi nahi isliye direct
-//     post unaudited apps ke liye scope_not_authorized deta hai.
+//     mein ek tap mein usay post kar deta hai. Ye TikTok ka OFFICIAL
+//     unaudited/sandbox flow hai.
 //   "direct" — /v2/post/publish/video/init/ (video.publish scope)
-//     Seedha profile pe publish. Ye tabhi on karo jab app audit pass kar
-//     le: TIKTOK_POST_MODE=direct + TIKTOK_PRIVACY_LEVEL=PUBLIC_TO_EVERYONE
+//     Audit ke baad: TIKTOK_POST_MODE=direct +
+//     TIKTOK_PRIVACY_LEVEL=PUBLIC_TO_EVERYONE
 //
-// Flow (FILE_UPLOAD, single chunk):
-//   1. Video Cloudinary se download (browser pehle hi upload kar chuka hota hai)
-//   2. init endpoint → publish_id + upload_url (1 ghante valid)
-//   3. PUT video bytes → upload_url (Content-Range ke saath)
-//   4. /v2/post/publish/status/fetch/ poll → post_id (direct) ya
-//      SEND_TO_USER_INBOX (draft) mila to kamyab
-//
-// IMPORTANT (Vercel 60s limit): video cap 60MB — download + upload + short
-// status polling iske andar comfortably fit hota hai. Chunks (>64MB rule) ki
-// zaroorat nahi kyunke ek hi PUT chalta hai.
+// DEBUG BUILD: har step Vercel runtime logs mein print hota hai (init jawab,
+// PUT status, har status poll ka jawab) — taake video TikTok tak pohnchne
+// ka exact point trace ho sake. Tokens/URLs log NAHI hote (sirf status).
 
 import { decryptSecret, encryptSecret } from "../utils/secureStore.js"
 import { refreshTiktokToken } from "../utils/tiktokOAuth.js"
 
 const TIKTOK_API = "https://open.tiktokapis.com"
 
-// 60MB cap — Vercel serverless 60s timeout ke andar safe (download ~10s +
-// upload ~20s + polling ~15s worst case). Cloudinary free tier 100MB deta hai
-// magar hum 60MB pe rok te hain.
+// 60MB cap — Vercel serverless 60s timeout ke andar safe.
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024
 
 // Mode switch — "draft" (default, unaudited-safe) | "direct" (audit ke baad)
@@ -76,8 +65,7 @@ function friendlyTiktokError(error) {
   return message
 }
 
-// Video ko Cloudinary se RAM mein download karo (buffer, streaming nahi —
-// simple aur reliable; 60MB max cap ke saath memory bilkul theek rehti hai)
+// Video ko Cloudinary se RAM mein download karo (buffer, streaming nahi)
 async function downloadVideo(videoUrl) {
   const res = await fetch(videoUrl)
   if (!res.ok) {
@@ -97,8 +85,7 @@ async function downloadVideo(videoUrl) {
 
 // Token helper — access token ~24 ghante mein expire hota hai. Expiry ke
 // 2 ghante andar ho to refresh_token se naya le lo. saveUser chained call
-// hota hai (parallel publish mein mongoose ParallelSaveError se bachao —
-// publishNow.js ka saveChain pattern).
+// hota hai (parallel publish mein mongoose ParallelSaveError se bachao).
 export async function getFreshTiktokToken(tkp, saveUser = null) {
   const expiresAt = tkp.expiresAt ? new Date(tkp.expiresAt).getTime() : 0
   if (expiresAt && expiresAt - Date.now() > 2 * 3600 * 1000) {
@@ -120,9 +107,8 @@ export async function getFreshTiktokToken(tkp, saveUser = null) {
   return refreshed.accessToken
 }
 
-// Status poll — post_id (direct mode) mila to wahi return, ya draft mode
-// mein SEND_TO_USER_INBOX (video inbox mein pohnch gayi). FAILED status pe
-// TikTok ka fail_reason ke saath error.
+// Status poll — post_id (direct mode) ya SEND_TO_USER_INBOX (draft mode).
+// DEBUG: har poll ka jawab log hota hai.
 async function pollTiktokStatus({ publishId, accessToken, deadlineMs, draftMode = false }) {
   while (Date.now() < deadlineMs) {
     await new Promise((resolve) => setTimeout(resolve, 5000)) // 5s gap
@@ -139,13 +125,15 @@ async function pollTiktokStatus({ publishId, accessToken, deadlineMs, draftMode 
       })
       const json = await res.json().catch(() => ({}))
       data = json?.data || null
+      console.log(
+        `📡 TikTok status poll — HTTP ${res.status} | error: ${JSON.stringify(json?.error || null)} | data: ${JSON.stringify(data || null)}`,
+      )
       if (json?.error?.code && json.error.code !== "ok") {
-        // Status endpoint ke transient errors pe polling rokni nahi —
-        // bas next iteration try hoga (deadline tak)
+        // Transient errors pe polling rokni nahi — deadline tak try
         console.log(`⚠️ TikTok status check: ${json.error.code}`)
       }
-    } catch {
-      // network hiccup — deadline tak dobara try
+    } catch (e) {
+      console.log(`⚠️ TikTok status poll network error: ${e.message}`)
       continue
     }
 
@@ -156,8 +144,7 @@ async function pollTiktokStatus({ publishId, accessToken, deadlineMs, draftMode 
       throw new Error(`TikTok publish fail hui — ${reason}`)
     }
 
-    // Draft mode: video inbox mein pohnch gayi = kamyab (post_id nahi hota
-    // drafts ka — user TikTok app mein khud post karega)
+    // Draft mode: video inbox mein pohnch gayi = kamyab
     if (draftMode && data.status === "SEND_TO_USER_INBOX") {
       return { postId: "", delivered: "inbox" }
     }
@@ -165,16 +152,11 @@ async function pollTiktokStatus({ publishId, accessToken, deadlineMs, draftMode 
     if (data.post_id) {
       return { postId: String(data.post_id) }
     }
-    // PUBLISH_COMPLETE ho magar post_id na mila (public moderation) —
-    // loop chalta rahega deadline tak, phir bina URL ke success
   }
   return { postId: "" }
 }
 
 // Main publish — return: { publishId, postId, url, mode }
-//   mode "direct": url = tiktok.com/@{username}/video/{post_id} (username mile to)
-//   mode "draft":  url khali — video TikTok INBOX/DRAFTS mein hai, user
-//                  TikTok app mein khud post karega (caption + privacy wahan)
 export async function publishToTiktok({
   videoUrl,
   title,
@@ -193,15 +175,14 @@ export async function publishToTiktok({
   }
 
   const startedAt = Date.now()
+  console.log(`📤 TikTok publish start — mode: ${mode}`)
 
   // 1) Video download
   const buffer = await downloadVideo(videoUrl)
   const size = buffer.length
+  console.log(`📤 TikTok video download ho gayi — ${Math.round(size / 1024)} KB`)
 
-  // 2) Init — FILE_UPLOAD single chunk (whole file <= 60MB < 64MB chunk limit)
-  //    draft mode: inbox init sirf source_info leta hai (post_info NAHI —
-  //    caption/privacy user TikTok app mein draft post karte waqt choose karta hai)
-  //    direct mode: post_info + source_info dono
+  // 2) Init — FILE_UPLOAD single chunk
   const privacy = privacyLevel || process.env.TIKTOK_PRIVACY_LEVEL || "SELF_ONLY"
   const initBody =
     mode === "direct"
@@ -232,6 +213,9 @@ export async function publishToTiktok({
           },
         }
 
+  console.log(
+    `📤 TikTok init request — ${mode === "direct" ? "DIRECT" : "INBOX (draft)"} endpoint`,
+  )
   const initRes = await fetch(
     mode === "direct" ? DIRECT_INIT_URL : INBOX_INIT_URL,
     {
@@ -244,11 +228,14 @@ export async function publishToTiktok({
     },
   )
   const initJson = await initRes.json().catch(() => ({}))
+  const { publish_id: publishId = "", upload_url: uploadUrl } =
+    initJson?.data || {}
+  console.log(
+    `📤 TikTok init jawab — HTTP ${initRes.status} | error: ${JSON.stringify(initJson?.error || null)} | publishId: ${publishId ? "MILA" : "NAHI MILA"} | uploadUrl: ${uploadUrl ? "MILA" : "NAHI MILA"} | dataKeys: ${JSON.stringify(Object.keys(initJson?.data || {}))}`,
+  )
   if (initJson?.error?.code && initJson.error.code !== "ok") {
     throw new Error(friendlyTiktokError(initJson.error))
   }
-  const { publish_id: publishId = "", upload_url: uploadUrl } =
-    initJson?.data || {}
   if (!uploadUrl) {
     throw new Error(
       `TikTok init jawab mein upload_url nahi mila (HTTP ${initRes.status})`,
@@ -268,28 +255,29 @@ export async function publishToTiktok({
     },
     body: buffer,
   })
+  console.log(`📤 TikTok video PUT — HTTP ${putRes.status}`)
   if (!putRes.ok) {
     const errText = await putRes.text().catch(() => "")
+    console.log(`📤 TikTok PUT error body: ${errText.slice(0, 200)}`)
     throw new Error(
       `TikTok video upload fail hui (HTTP ${putRes.status}) ${errText.slice(0, 120)}`,
     )
   }
 
-  // 3b) Draft mode + init ne publish_id nahi diya — upload kafi hai, video
-  //     TikTok ke paas hai aur inbox/drafts mein nazar aayegi
+  // 3b) Draft mode + init ne publish_id nahi diya — upload kafi hai
   if (mode === "draft" && !publishId) {
+    console.log("⏭️ TikTok draft mode — publish_id nahi mila tha, PUT kamyab = video TikTok ke paas")
     return { publishId: "", postId: "", url: "", mode }
   }
 
-  // 4) Status poll — total request 60s se kam rakhne ke liye hard deadline
-  //    (upload + download ka time nikal ke polling budget)
-  //    draft mode: chhota budget (inbox delivery jaldi confirm ho jati hai)
+  // 4) Status poll — hard deadline (60s Vercel limit ke andar)
   const elapsed = Date.now() - startedAt
   const pollBudget =
     mode === "draft"
       ? Math.max(8000, 20000 - elapsed)
       : Math.max(8000, 45000 - elapsed)
   const deadline = Date.now() + pollBudget
+  console.log(`📡 TikTok status poll shuru — budget: ${Math.round(pollBudget / 1000)}s`)
   let postId = ""
   try {
     const status = await pollTiktokStatus({
@@ -300,8 +288,6 @@ export async function publishToTiktok({
     })
     postId = status.postId
   } catch (err) {
-    // Publish fail hui to error uthao — magar agar sirf polling timeout
-    // hui ho to post phir bhi TikTok pe process ho rahi hai (success)
     if (String(err.message).startsWith("TikTok publish fail")) throw err
     console.log(`⚠️ TikTok status poll budget khatam (${err.message})`)
   }
@@ -311,5 +297,8 @@ export async function publishToTiktok({
       ? `https://www.tiktok.com/@${username}/video/${postId}`
       : ""
 
+  console.log(
+    `✅ TikTok publish khatam — mode: ${mode} | publishId: ${publishId ? "mila" : "—"} | postId: ${postId || "—"} | url: ${url || "—"}`,
+  )
   return { publishId, postId, url, mode }
 }
