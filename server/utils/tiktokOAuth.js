@@ -143,9 +143,9 @@ export async function refreshTiktokToken(refreshToken) {
 // Profile — display name + @username (publish ke baad permalink isi se
 // banta hai: tiktok.com/@username/video/{post_id})
 export async function fetchTiktokUserInfo(accessToken) {
-  const url =
-    USER_INFO_URL +
-    new URLSearchParams({
+const url =
+  USER_INFO_URL +          // "https://open.tiktokapis.com/v2/user/info/"
+  new URLSearchParams({...}).toString()   // "fields=open_id%2C..."
       fields: "open_id,display_name,avatar_url,username",
     }).toString()
   const res = await fetch(url, {
