@@ -12,6 +12,11 @@
 
   html {
     @apply bg-slate-50;
+    /* MOBILE FIX: koi wide element page ko horizontally na phailaye —
+       phone pe sirf vertical scroll ho (wide tables apne card ke andar
+       hi swipe hoti hain). hidden purane browsers ke liye, clip naya. */
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
