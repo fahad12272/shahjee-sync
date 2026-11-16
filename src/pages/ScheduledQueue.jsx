@@ -257,11 +257,11 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
           ? "Almost done — some platforms (like Threads) are a bit slower"
           : "Still working — keep this tab open, the popup will appear on its own"
     return (
-      <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 px-4">
+      <div className="fixed bottom-6 left-1/2 z-40 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2">
         <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-white px-5 py-3.5 shadow-xl shadow-indigo-100">
           <Loader2 className="size-4 shrink-0 animate-spin text-indigo-600" />
-          <div>
-            <p className="text-sm text-slate-500">
+          <div className="min-w-0">
+            <p className="break-words text-sm text-slate-500">
               <span className="font-semibold text-slate-800">
                 “{publishStatus.title}”
               </span>{" "}
@@ -296,9 +296,9 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div
-          className={`flex items-center gap-3 px-6 py-4 ${bad ? "bg-rose-50" : "bg-emerald-50"}`}
+          className={`flex items-center gap-3 px-4 py-4 sm:px-6 ${bad ? "bg-rose-50" : "bg-emerald-50"}`}
         >
           <div
             className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${bad ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}
@@ -330,7 +330,7 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
         </div>
 
         {!isError && results.length > 0 && (
-          <div className="max-h-56 space-y-2 overflow-y-auto px-6 py-4">
+          <div className="max-h-56 space-y-2 overflow-y-auto px-4 py-4 sm:px-6">
             {results.map((result, i) => {
               const config = platformIconMap[result.platform]
               const name =
@@ -390,14 +390,14 @@ function PublishResultModal({ onClosePublishStatus, publishStatus }) {
         )}
 
         {!isError && results.length === 0 && (
-          <p className="px-6 py-4 text-sm text-slate-500">
+          <p className="px-4 py-4 text-sm text-slate-500 sm:px-6">
             Post saved — platform results will appear in the list shortly.
           </p>
         )}
 
-        <div className="flex justify-end border-t border-slate-100 px-6 py-4">
+        <div className="flex justify-end border-t border-slate-100 px-4 py-4 sm:px-6">
           <button
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            className="w-full rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 sm:w-auto"
             onClick={onClosePublishStatus}
             type="button"
           >
