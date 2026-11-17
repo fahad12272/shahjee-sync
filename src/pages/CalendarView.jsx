@@ -213,11 +213,11 @@ export function CalendarView({ posts, onAddPost, onBack }) {
           </div>
 
           <div className="overflow-x-auto">
-            <div className="min-w-3xl">
+            <div className="min-w-0 sm:min-w-3xl">
               <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-100/80">
                 {WEEKDAYS.map((day) => (
                   <div
-                    className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                    className="px-1 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 sm:px-3"
                     key={day}
                   >
                     {day}
@@ -233,7 +233,7 @@ export function CalendarView({ posts, onAddPost, onBack }) {
 
                   return (
                     <div
-                      className={`group min-h-24 p-2 ${index % 7 !== 6 ? "border-r border-slate-100" : ""} ${isLastRow ? "" : "border-b border-slate-100"} ${inMonth ? "bg-white" : "bg-slate-50/60"}`}
+                      className={`group min-h-24 p-1.5 sm:p-2 ${index % 7 !== 6 ? "border-r border-slate-100" : ""} ${isLastRow ? "" : "border-b border-slate-100"} ${inMonth ? "bg-white" : "bg-slate-50/60"}`}
                       key={dateKey(date)}
                     >
                       <div className="flex items-center justify-between px-0.5">
@@ -257,7 +257,7 @@ export function CalendarView({ posts, onAddPost, onBack }) {
                             )}
                             <button
                               aria-label={`Schedule post on ${date.toDateString()}`}
-                              className="flex size-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-indigo-50 hover:text-indigo-600 focus:opacity-100 group-hover:opacity-100"
+                              className="hidden size-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-indigo-50 hover:text-indigo-600 focus:opacity-100 group-hover:opacity-100 md:flex"
                               onClick={() => onAddPost(date)}
                               type="button"
                             >
@@ -312,7 +312,7 @@ export function CalendarView({ posts, onAddPost, onBack }) {
         >
           <div
             aria-modal="true"
-            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
