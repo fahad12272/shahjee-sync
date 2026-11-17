@@ -649,7 +649,8 @@ export function ScheduledQueue({
               </div>
             )}
 
-            <div className="overflow-x-auto">
+            {/* Desktop table — mobile pe card list dikhti hai */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-3xl border-collapse text-left">
                 <thead className="bg-slate-100/80">
                   <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -886,21 +887,227 @@ export function ScheduledQueue({
                   ))}
                 </tbody>
               </table>
-
-              {filteredPosts.length === 0 && (
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
-                    <Search className="size-5" />
-                  </div>
-                  <div className="mt-4 text-sm font-bold text-slate-800">
-                    No scheduled posts found
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Try changing your search or filter selection.
-                  </p>
-                </div>
-              )}
             </div>
+
+            {/* Mobile: Select all row */}
+            {sortedPosts.length > 0 && (
+              <div className="bg-slate-50/60 px-4 py-2.5 md:hidden">
+                <label className="flex items-center gap-2">
+                  <input
+                    aria-label="Select all posts"
+                    checked={allVisibleSelected}
+                    className="size-4 cursor-pointer accent-indigo-600"
+                    onChange={toggleAll}
+                    type="checkbox"
+                  />
+                  <span className="text-xs font-semibold text-slate-500">
+                    Select all
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {/* Mobile card list — table sirf md+ screens pe */}
+            <div className="divide-y divide-slate-100 md:hidden">
+              {sortedPosts.map((post) => {
+                const stage = publishStage(post, now)
+                return (
+                  <div
+                    className={`relative p-4 ${
+                      selected.has(post.id) ? "bg-indigo-50/40" : ""
+                    }`}
+                    key={post.id}
+                  >
+                    <button
+                      aria-expanded={activeMenu === post.id}
+                      aria-label={`Actions for ${post.title}`}
+                      className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-lg border border-transparent text-slate-400 transition hover:border-slate-200 hover:bg-white hover:text-slate-700"
+                      onClick={() =>
+                        setActiveMenu((current) =>
+                          current === post.id ? null : post.id,
+                        )
+                      }
+                      type="button"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+
+                    {activeMenu === post.id && (
+                      <div className="absolute right-3 top-12 z-20 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-left shadow-xl shadow-slate-200/60">
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                          onClick={() => {
+                            setEditingPost(post)
+                            setEditMode("edit")
+                            setActiveMenu(null)
+                          }}
+                          type="button"
+                        >
+                          <Pencil className="size-3.5 text-slate-400" />
+                          Edit post
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                          onClick={() => {
+                            setEditingPost(post)
+                            setEditMode("reschedule")
+                            setActiveMenu(null)
+                          }}
+                          type="button"
+                        >
+                          <CalendarClock className="size-3.5 text-slate-400" />
+                          Reschedule
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                          onClick={() => {
+                            onDuplicatePost(post.id)
+                            setActiveMenu(null)
+                          }}
+                          type="button"
+                        >
+                          <Copy className="size-3.5 text-slate-400" />
+                          Duplicate
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                          onClick={() => {
+                            onDeletePost(post.id)
+                            setActiveMenu(null)
+                          }}
+                          type="button"
+                        >
+                          <Trash2 className="size-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex items-start gap-3">
+                      <img
+                        alt=""
+                        className="size-12 shrink-0 rounded-xl object-cover ring-1 ring-slate-200"
+                        src={post.image}
+                      />
+                      <div className="min-w-0 flex-1 pr-10">
+                        <div className="text-sm font-bold text-slate-800">
+                          {post.title}
+                        </div>
+                        <div className="mt-0.5 truncate text-xs text-slate-400">
+                          {post.caption ? post.caption : "Image post"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+                      {stage === "publishing" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                          <Loader2 className="size-3 animate-spin" />
+                          Publish ho raha hai…
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                            post.status === "Published"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          <span
+                            className={`size-1.5 rounded-full ${
+                              post.status === "Published"
+                                ? "bg-emerald-500"
+                                : "bg-amber-500"
+                            }`}
+                          />
+                          {post.status}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Clock3 className="size-3" />
+                        {post.date} · {post.time}
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 flex -space-x-1.5">
+                      {post.platforms.map((platform) => {
+                        const config = platformIconMap[platform]
+                        if (!config) return null
+                        const Icon = config.icon
+                        return (
+                          <span
+                            className={`flex size-7 items-center justify-center rounded-full border-2 border-white text-white ${config.style}`}
+                            key={platform}
+                          >
+                            <Icon className="size-3" />
+                          </span>
+                        )
+                      })}
+                    </div>
+
+                    {post.publishResults?.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {post.publishResults.map((result, resultIndex) => {
+                          const config = platformIconMap[result.platform]
+                          if (!config) return null
+                          return result.success ? (
+                            <a
+                              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              href={result.url || "#"}
+                              key={`${post.id}-${resultIndex}`}
+                              rel="noreferrer"
+                              target="_blank"
+                              title="Published post dekho"
+                            >
+                              <config.icon className="size-3" />
+                              View
+                              <ExternalLink className="size-2.5" />
+                            </a>
+                          ) : (
+                            <span
+                              className="inline-flex cursor-help items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700"
+                              key={`${post.id}-${resultIndex}`}
+                              title={result.error || "Publish fail hui"}
+                            >
+                              <config.icon className="size-3" />
+                              Fail
+                              <TriangleAlert className="size-2.5" />
+                            </span>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 pl-[3.75rem]">
+                      <label className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-400">
+                        <input
+                          aria-label={`Select ${post.title}`}
+                          checked={selected.has(post.id)}
+                          className="size-4 cursor-pointer accent-indigo-600"
+                          onChange={() => toggleOne(post.id)}
+                          type="checkbox"
+                        />
+                        Select
+                      </label>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {filteredPosts.length === 0 && (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="flex size-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                  <Search className="size-5" />
+                </div>
+                <div className="mt-4 text-sm font-bold text-slate-800">
+                  No scheduled posts found
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Try changing your search or filter selection.
+                </p>
+              </div>
+            )}
           </section>
         </div>
       </main>
