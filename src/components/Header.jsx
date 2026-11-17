@@ -172,7 +172,7 @@ export function Header({
           </button>
 
           {showBell && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/40">
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-8rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/40">
               <div className="border-b border-slate-100 px-4 py-3 text-sm font-bold text-slate-900">
                 Notifications
               </div>
