@@ -3,7 +3,7 @@ export function ToggleSwitch({ enabled, label, onToggle }) {
     <button
       aria-checked={enabled}
       aria-label={label}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 before:absolute before:-inset-2 before:rounded-full before:content-[""] ${
         enabled ? "bg-indigo-600" : "bg-slate-300"
       }`}
       onClick={onToggle}
