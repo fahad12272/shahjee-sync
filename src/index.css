@@ -17,6 +17,10 @@
        hi swipe hoti hain). hidden purane browsers ke liye, clip naya. */
     overflow-x: hidden;
     overflow-x: clip;
+    /* iOS Safari text auto-zoom band — landscape pe fonts chhote na ho jayen */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   }
 
   body {
@@ -30,6 +34,26 @@
 
   button {
     cursor: pointer;
+    /* MOBILE FIX: tap pe grey highlight box na aaye + 300ms double-tap
+       zoom delay na ho — har button turant respond kare */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  a {
+    touch-action: manipulation;
+  }
+}
+
+/* iOS INPUT ZOOM FIX: Safari touch device pe 16px se chhote font wale
+   input pe focus karte hi page auto-zoom ho jata tha (keyboard khulte
+   hi layout toot jata). Sirf touch devices pe inputs 16px — desktop
+   design bilkul waisa hi rahega. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 
