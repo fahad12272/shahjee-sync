@@ -31,7 +31,11 @@ export function Header({
   const [query, setQuery] = useState("")
   const [showResults, setShowResults] = useState(false)
   const [showBell, setShowBell] = useState(false)
+  // MOBILE FIX: ab phone/tablet pe bhi header search maujood hai —
+  // search icon button tap karo to neeche full-width search panel khulta hai
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const searchRef = useRef(null)
+  const mobileSearchRef = useRef(null)
   const bellRef = useRef(null)
 
   const trimmed = query.trim().toLowerCase()
@@ -48,6 +52,9 @@ export function Header({
       if (searchRef.current && !searchRef.current.contains(target)) {
         setShowResults(false)
       }
+      if (mobileSearchRef.current && !mobileSearchRef.current.contains(target)) {
+        setMobileSearchOpen(false)
+      }
       if (bellRef.current && !bellRef.current.contains(target)) {
         setShowBell(false)
       }
@@ -60,6 +67,13 @@ export function Header({
     const next = !showBell
     setShowBell(next)
     if (next) onMarkActivitiesRead()
+  }
+
+  const selectResult = (post) => {
+    onSearchSelect(post.title)
+    setQuery("")
+    setShowResults(false)
+    setMobileSearchOpen(false)
   }
 
   return (
@@ -83,7 +97,7 @@ export function Header({
       </div>
 
       <div className="ml-auto flex items-center gap-2.5 md:gap-3">
-        {/* Workspace search */}
+        {/* Workspace search — desktop inline */}
         <div className="relative hidden lg:block" ref={searchRef}>
           <Search
             aria-hidden="true"
@@ -114,11 +128,7 @@ export function Header({
                     <button
                       className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                       key={post.id}
-                      onClick={() => {
-                        onSearchSelect(post.title)
-                        setQuery("")
-                        setShowResults(false)
-                      }}
+                      onClick={() => selectResult(post)}
                       type="button"
                     >
                       <img
@@ -155,6 +165,95 @@ export function Header({
           )}
         </div>
 
+        {/* MOBILE/TABLET SEARCH — search icon tap karo, neeche panel khulta hai */}
+        <div className="relative lg:hidden" ref={mobileSearchRef}>
+          <button
+            aria-expanded={mobileSearchOpen}
+            aria-label="Search workspace"
+            className={`flex size-10 items-center justify-center rounded-xl border transition ${
+              mobileSearchOpen
+                ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+                : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+            onClick={() => setMobileSearchOpen((current) => !current)}
+            type="button"
+          >
+            <Search className="size-4.5" />
+          </button>
+
+          {mobileSearchOpen && (
+            <div className="fixed left-4 right-4 top-[5.5rem] z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/40 sm:left-1/2 sm:right-auto sm:w-96 sm:-translate-x-1/2">
+              <div className="border-b border-slate-100 p-3">
+                <div className="relative">
+                  <Search
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    autoFocus
+                    aria-label="Search workspace"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search workspace..."
+                    type="search"
+                    value={query}
+                  />
+                </div>
+              </div>
+
+              {trimmed.length > 0 ? (
+                results.length > 0 ? (
+                  <>
+                    <div className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      {results.length} {results.length === 1 ? "post" : "posts"}{" "}
+                      found
+                    </div>
+                    {results.map((post) => (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                        key={post.id}
+                        onClick={() => selectResult(post)}
+                        type="button"
+                      >
+                        <img
+                          alt=""
+                          className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
+                          src={post.image}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-slate-800">
+                            {post.title}
+                          </div>
+                          <div className="mt-0.5 text-xs text-slate-400">
+                            {post.date} · {post.time}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            post.status === "Published"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {post.status}
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <div className="px-4 py-6 text-center text-sm text-slate-500">
+                    No posts match “{query}”
+                  </div>
+                )
+              ) : (
+                <div className="px-4 py-6 text-center text-sm text-slate-400">
+                  Start typing to search your posts.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Notifications */}
         <div className="relative" ref={bellRef}>
           <button
@@ -172,7 +271,7 @@ export function Header({
           </button>
 
           {showBell && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-8rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/40">
+            <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-6rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/40">
               <div className="border-b border-slate-100 px-4 py-3 text-sm font-bold text-slate-900">
                 Notifications
               </div>
@@ -216,6 +315,8 @@ export function Header({
         </div>
 
         <button
+          aria-label="New post"
+          title="New post"
           className="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 hover:shadow-indigo-300/70 md:h-11 md:px-4"
           onClick={onNewPost}
           type="button"
