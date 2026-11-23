@@ -20,7 +20,7 @@ const toastIconColors = {
 
 export function ToastContainer({ toasts, onDismiss }) {
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[70] flex w-[calc(100vw-2.5rem)] max-w-sm flex-col gap-2.5">
+    <div className="pointer-events-none fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-[70] flex w-[calc(100vw-2.5rem)] max-w-sm flex-col gap-2.5">
       {toasts.map((toast) => {
         const Icon = toastIcons[toast.type]
         return (
@@ -53,11 +53,11 @@ export function ToastContainer({ toasts, onDismiss }) {
             </div>
             <button
               aria-label="Dismiss notification"
-              className="flex size-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               onClick={() => onDismiss(toast.id)}
               type="button"
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </button>
           </div>
         )
