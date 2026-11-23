@@ -49,6 +49,9 @@ export function CalendarView({ posts, onAddPost, onBack }) {
     posts.length > 0 ? new Date(posts[0].date) : new Date(),
   )
   const [selectedPost, setSelectedPost] = useState(null)
+  // MOBILE FIX: jis din 2 se zyada posts hain unhe expand karne ke liye —
+  // pehle "+N more" sirf dead text tha, mobile pe chhupi posts kabhi nahi dikhti thin
+  const [expandedDay, setExpandedDay] = useState(null)
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
@@ -255,13 +258,15 @@ export function CalendarView({ posts, onAddPost, onBack }) {
                                 {dayPosts.length}
                               </span>
                             )}
+                            {/* MOBILE FIX: ye button pehle sirf desktop hover pe
+                                dikhta tha — ab har screen pe visible hai */}
                             <button
                               aria-label={`Schedule post on ${date.toDateString()}`}
-                              className="hidden size-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-indigo-50 hover:text-indigo-600 focus:opacity-100 group-hover:opacity-100 md:flex"
+                              className="flex size-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 md:size-5"
                               onClick={() => onAddPost(date)}
                               type="button"
                             >
-                              <Plus className="size-3" />
+                              <Plus className="size-3.5 md:size-3" />
                             </button>
                           </div>
                         )}
@@ -269,7 +274,10 @@ export function CalendarView({ posts, onAddPost, onBack }) {
 
                       {inMonth && (
                         <div className="mt-1 space-y-1">
-                          {dayPosts.slice(0, 2).map((post) => (
+                          {(expandedDay === dateKey(date)
+                            ? dayPosts
+                            : dayPosts.slice(0, 2)
+                          ).map((post) => (
                             <button
                               className={`w-full rounded-lg border px-1.5 py-1 text-left transition ${statusChip[post.status] ?? "border-slate-200 bg-slate-50 text-slate-600"}`}
                               key={post.id}
@@ -289,10 +297,23 @@ export function CalendarView({ posts, onAddPost, onBack }) {
                               </span>
                             </button>
                           ))}
+                          {/* MOBILE FIX: tap ke saath din ke baqi posts expand/collapse */}
                           {dayPosts.length > 2 && (
-                            <div className="px-1 text-[10px] font-semibold text-slate-400">
-                              +{dayPosts.length - 2} more
-                            </div>
+                            <button
+                              className="w-full rounded-md px-1 py-0.5 text-left text-[10px] font-semibold text-indigo-500 transition hover:text-indigo-700"
+                              onClick={() =>
+                                setExpandedDay((current) =>
+                                  current === dateKey(date)
+                                    ? null
+                                    : dateKey(date),
+                                )
+                              }
+                              type="button"
+                            >
+                              {expandedDay === dateKey(date)
+                                ? "Show less"
+                                : `+${dayPosts.length - 2} more`}
+                            </button>
                           )}
                         </div>
                       )}
