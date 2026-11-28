@@ -330,58 +330,99 @@ export function AnalyticsPage({ posts }) {
           </div>
 
           {platformRows.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-2xl text-left">
-                <thead className="bg-slate-100/80">
-                  <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-3.5 sm:px-6">Platform</th>
-                    <th className="px-5 py-3.5">Posts</th>
-                    <th className="px-5 py-3.5">Pending</th>
-                    <th className="px-5 py-3.5">Published</th>
-                    <th className="px-5 py-3.5 text-right sm:px-6">Share</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {platformRows.map((row) => {
-                    const Icon = row.icon
-                    return (
-                      <tr
-                        className="transition hover:bg-slate-50/70"
-                        key={row.key}
-                      >
-                        <td className="px-5 py-4 sm:px-6">
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`flex size-9 items-center justify-center rounded-xl text-white ${row.iconStyle}`}
-                            >
-                              {Icon ? <Icon className="size-4" /> : null}
-                            </span>
-                            <div className="text-sm font-bold text-slate-800">
-                              {row.name}
+            <>
+              {/* DESKTOP/TABLET — full table (mobile pe card list neeche hai) */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-100/80">
+                    <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="px-6 py-3.5">Platform</th>
+                      <th className="px-6 py-3.5">Posts</th>
+                      <th className="px-6 py-3.5">Pending</th>
+                      <th className="px-6 py-3.5">Published</th>
+                      <th className="px-6 py-3.5 text-right">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {platformRows.map((row) => {
+                      const Icon = row.icon
+                      return (
+                        <tr
+                          className="transition hover:bg-slate-50/70"
+                          key={row.key}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`flex size-9 items-center justify-center rounded-xl text-white ${row.iconStyle}`}
+                              >
+                                {Icon ? <Icon className="size-4" /> : null}
+                              </span>
+                              <div className="text-sm font-bold text-slate-800">
+                                {row.name}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-800">
-                          {row.total}
-                        </td>
-                        <td className="px-5 py-4 text-sm font-semibold text-amber-600">
-                          {row.pending}
-                        </td>
-                        <td className="px-5 py-4 text-sm font-semibold text-emerald-600">
-                          {row.published}
-                        </td>
-                        <td className="px-5 py-4 text-right sm:px-6">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
-                            <ArrowUpRight className="size-3" />
-                            {row.share}%
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-slate-800">
+                            {row.total}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-amber-600">
+                            {row.pending}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-emerald-600">
+                            {row.published}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                              <ArrowUpRight className="size-3" />
+                              {row.share}%
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* MOBILE — har platform ka card, swipe ki zaroorat nahi */}
+              <div className="divide-y divide-slate-100 md:hidden">
+                {platformRows.map((row) => {
+                  const Icon = row.icon
+                  return (
+                    <div
+                      className="flex items-center gap-3 px-4 py-3.5"
+                      key={row.key}
+                    >
+                      <span
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-white ${row.iconStyle}`}
+                      >
+                        {Icon ? <Icon className="size-4" /> : null}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold text-slate-800">
+                          {row.name}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {row.total} posts ·{" "}
+                          <span className="font-semibold text-amber-600">
+                            {row.pending} pending
+                          </span>{" "}
+                          ·{" "}
+                          <span className="font-semibold text-emerald-600">
+                            {row.published} published
                           </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                        <ArrowUpRight className="size-3" />
+                        {row.share}%
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center px-6 py-14 text-center text-slate-400">
               <Layers className="size-8" strokeWidth={1.5} />
