@@ -663,7 +663,7 @@ export function LandingPage({ onGetStarted, onLogin }) {
             Create your free account
             <ArrowRight className="size-4" />
           </button>
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-xs text-indigo-100">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-indigo-100">
             <Check className="size-3.5" />
             Free forever
             <span className="text-indigo-300">·</span>
