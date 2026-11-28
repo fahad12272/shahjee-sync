@@ -5,6 +5,7 @@ import {
   CirclePlay,
   Clock3,
   ImagePlus,
+  Lock,
   Send,
   Sparkles,
   UploadCloud,
