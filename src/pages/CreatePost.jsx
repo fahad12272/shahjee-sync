@@ -321,14 +321,14 @@ export function CreatePost({
 
             <div className="space-y-6 p-5 sm:p-6">
               <div>
-                <div className="mb-2.5 flex items-center justify-between">
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                   <label
                     className="text-sm font-semibold text-slate-800"
                     htmlFor="media-upload"
                   >
                     Media
                   </label>
-                                   <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400">
                     {isUploading
                       ? isVideoMedia
                         ? `Video uploading… ${uploadProgress}%`
@@ -381,7 +381,7 @@ export function CreatePost({
               </div>
 
               <div>
-                <div className="mb-2.5 flex items-center justify-between gap-3">
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                   <label
                     className="text-sm font-semibold text-slate-800"
                     htmlFor="caption"
