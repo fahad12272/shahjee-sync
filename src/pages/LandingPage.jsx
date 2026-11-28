@@ -229,17 +229,17 @@ export function LandingPage({ onGetStarted, onLogin }) {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {/* Navbar */}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/85 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+          <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/85 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
               <Zap className="size-4.5 fill-current" />
             </div>
-            <div>
-              <div className="text-sm font-bold tracking-tight">
+            <div className="min-w-0">
+              <div className="truncate whitespace-nowrap text-sm font-bold tracking-tight">
                 Shahjee Sync
               </div>
-              <div className="text-[10px] font-medium text-slate-400">
+              <div className="hidden text-[10px] font-medium text-slate-400 sm:block">
                 Social workspace
               </div>
             </div>
@@ -255,9 +255,9 @@ export function LandingPage({ onGetStarted, onLogin }) {
               FAQ
             </a>
           </nav>
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <button
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:px-4"
               onClick={onLogin}
               type="button"
             >
@@ -265,7 +265,7 @@ export function LandingPage({ onGetStarted, onLogin }) {
               Log in
             </button>
             <button
-              className="flex h-9 items-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-xs font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700"
+              className="flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl bg-indigo-600 px-3 text-xs font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 sm:px-4"
               onClick={onGetStarted}
               type="button"
             >
