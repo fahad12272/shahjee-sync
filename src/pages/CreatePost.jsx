@@ -22,6 +22,22 @@ import {
 
 import { apiGetVideoUploadParams, apiUploadMedia, apiUploadVideoDirect } from "../api"
 
+// AI Suggest Caption — har click pe NEXT caption milti hai (10 alag alag,
+// cycle mein chalti hain). Pehle hardcoded ek hi line thi jo har baar
+// same paste hoti thi — ab har click naya text deta hai.
+const AI_CAPTIONS = [
+  "Fresh ideas, made to move. Here's a look at what we've been creating lately. What do you think?",
+  "Behind every post is a story worth sharing. Today's chapter starts right here.",
+  "Small drops, big waves. Consistency is the real algorithm — and we're just getting started.",
+  "Creating something new today. Stay close — you don't want to miss this one.",
+  "Your daily dose of inspiration is here. Save this post and share it with a friend.",
+  "From idea to feed in minutes. This is what showing up every day looks like.",
+  "New drop alert! Follow along so you never miss what's coming next.",
+  "Made with love, posted with purpose. Tell us your favorite part in the comments.",
+  "The best content comes from real moments. Here's a little piece of our day.",
+  "Trends fade, but good content stays. We're here for the long run — join us.",
+]
+
 export function CreatePost({
   pageTitle,
   onPublish,
@@ -33,6 +49,9 @@ export function CreatePost({
     draft?.platforms ?? [],
   )
   const [caption, setCaption] = useState(draft?.caption ?? "")
+    // AI caption cycle — agli suggestion ka index
+  const [captionIndex, setCaptionIndex] = useState(0)
+  
   const [publishMode, setPublishMode] = useState(
     draft?.publishMode ?? "now",
   )
@@ -273,7 +292,7 @@ export function CreatePost({
                     Select where this post should be published.
                   </p>
                 </div>
-                <div className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                <div className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-indigo-700">
                   {selectedPlatforms.length} selected
                 </div>
               </div>
@@ -285,8 +304,8 @@ export function CreatePost({
                   const isConnected = connectedPlatforms.includes(platform.name)
 
                   return (
-                    <button
-                      className={`relative flex min-h-12 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-xs font-semibold shadow-sm transition ${
+                                       <button
+                      className={`relative flex min-h-14 flex-col justify-center gap-1 rounded-xl border px-3.5 py-2 text-left text-xs font-semibold shadow-sm transition ${
                         !isConnected
                           ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 opacity-70"
                           : isSelected
@@ -301,16 +320,26 @@ export function CreatePost({
                       }
                       type="button"
                     >
-                      <Icon className="size-4.5 shrink-0" />
-                      <span className="leading-4">{platform.name}</span>
-                      {isSelected ? (
-                        <span
-                          className={`ml-auto flex size-4 shrink-0 items-center justify-center rounded-full text-white ${platform.check}`}
-                        >
-                          <Check className="size-2.5" strokeWidth={3} />
+                      {/* MOBILE FIX: pehle icon + naam + status sab ek line mein
+                          the — chhoti screen pe "Not connected" overflow karta tha
+                          aur selected check dab jata tha. Ab 2 rows: upar naam
+                          (+ check), neeche status — har width pe saaf dikhta hai. */}
+                      <span className="flex items-center gap-2">
+                        <Icon className="size-4.5 shrink-0" />
+                        <span className="truncate leading-4">
+                          {platform.name}
                         </span>
-                      ) : !isConnected ? (
-                        <span className="ml-auto text-[9px] font-semibold text-slate-400">
+                        {isSelected ? (
+                          <span
+                            className={`ml-auto flex size-4.5 shrink-0 items-center justify-center rounded-full text-white ${platform.check}`}
+                          >
+                            <Check className="size-3" strokeWidth={3} />
+                          </span>
+                        ) : null}
+                      </span>
+                      {!isConnected ? (
+                        <span className="flex items-center gap-1 text-[9px] font-medium whitespace-nowrap text-slate-400">
+                          <Lock className="size-2.5 shrink-0" />
                           Not connected
                         </span>
                       ) : null}
@@ -390,12 +419,12 @@ export function CreatePost({
                     Caption
                   </label>
                   <button
-                    className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
-                    onClick={() =>
-                      setCaption(
-                        "Fresh ideas, made to move. Here's a look at what we've been creating lately. What do you think?",
-                      )
-                    }
+                    className="flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-violet-700 transition hover:bg-violet-100"
+                    onClick={() => {
+                      // Har click pe agli caption — cycle chalti rehti hai
+                      setCaption(AI_CAPTIONS[captionIndex % AI_CAPTIONS.length])
+                      setCaptionIndex((current) => current + 1)
+                    }}
                     type="button"
                   >
                     <Sparkles className="size-3.5" />
