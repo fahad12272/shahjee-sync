@@ -133,7 +133,7 @@ export function CalendarView({ posts, onAddPost, onBack }) {
               Content Calendar
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Hover any date and press + to schedule a post instantly.
+              Tap + on any date to schedule a post instantly.
             </p>
           </div>
 
